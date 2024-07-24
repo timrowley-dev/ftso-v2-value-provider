@@ -1022,6 +1022,177 @@
     ]
   },
   {
+    "feed": { "category": 1, "name": "ENA/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "ENA/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "ENA/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "ENA/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "ENA/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "ETHFI/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "ETHFI/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "ETHFI/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "ETHFI/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "ETHFI/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "ETHFI/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "JUP/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "JUP/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "JUP/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "JUP/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "JUP/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "JUP/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "NEAR/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "NEAR/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "NEAR/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "NEAR/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "NEAR/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "NEAR/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "PYTH/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "PYTH/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "PYTH/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "PYTH/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "PYTH/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "PYTH/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "WIF/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "WIF/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "WIF/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "WIF/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "WIF/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "WIF/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "BONK/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "BONK/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "BONK/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "BONK/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "BONK/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "BONK/USDT"
+      }
+    ]
+  },
+  {
     "feed": { "category": 1, "name": "INJ/USD" },
     "sources": [
       {
