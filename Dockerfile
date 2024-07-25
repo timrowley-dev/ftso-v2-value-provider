@@ -23,3 +23,6 @@ COPY --from=build /app/dist /app/dist
 COPY src/config src/config
 
 CMD ["node", "dist/main.js"]
+
+
+# docker run --rm -it -d --env-file ./.env --publish "0.0.0.0:3101:3101" value-provider-au

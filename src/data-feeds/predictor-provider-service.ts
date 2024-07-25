@@ -5,6 +5,8 @@ import { FeedId, FeedValueData } from "../dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
 import { retry } from "src/utils/retry";
 import axios, { AxiosResponse } from "axios";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 type networks = "local-test" | "from-env" | "coston2" | "coston" | "songbird";
 
