@@ -14,7 +14,7 @@ export class ExampleProviderController {
     @Param("votingRoundId", ParseIntPipe) votingRoundId: number,
     @Body() body: FeedValuesRequest
   ): Promise<RoundFeedValuesResponse> {
-    const values = await this.providerService.getValues(body.feeds);
+    const values = await this.providerService.getValues(body.feeds, votingRoundId);
     this.logger.log(`Feed values for voting round ${votingRoundId}: ${JSON.stringify(values)}`);
     return {
       votingRoundId,
@@ -24,7 +24,7 @@ export class ExampleProviderController {
 
   @Post("feed-values/")
   async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
-    const values = await this.providerService.getValues(body.feeds);
+    const values = await this.providerService.getValues(body.feeds, 0);
     this.logger.log(`Current feed values: ${JSON.stringify(values)}`);
     return {
       data: values,

@@ -6,11 +6,11 @@ import { BaseDataFeed } from "./data-feeds/base-feed";
 export class ExampleProviderService {
   constructor(private readonly dataFeed: BaseDataFeed) {}
 
-  async getValue(feed: FeedId): Promise<FeedValueData> {
-    return this.dataFeed.getValue(feed);
+  async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
+    return this.dataFeed.getValue(feed, votingRoundId);
   }
 
-  async getValues(feeds: FeedId[]): Promise<FeedValueData[]> {
-    return this.dataFeed.getValues(feeds);
+  async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
+    return this.dataFeed.getValues(feeds, votingRoundId);
   }
 }

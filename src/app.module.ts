@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ExampleProviderService } from "./app.service";
 import { ExampleProviderController } from "./app.controller";
-import { CcxtFeed } from "./data-feeds/ccxt-provider-service";
+// import { CcxtFeed } from "./data-feeds/ccxt-provider-service";
+import { PredictorFeed } from "./data-feeds/predictor-provider-service";
 import { RandomFeed } from "./data-feeds/random-feed";
 import { BaseDataFeed } from "./data-feeds/base-feed";
 import { FixedFeed } from "./data-feeds/fixed-feed";
@@ -20,9 +21,12 @@ import { FixedFeed } from "./data-feeds/fixed-feed";
         } else if (process.env.VALUE_PROVIDER_IMPL == "random") {
           dataFeed = new RandomFeed();
         } else {
-          const ccxtFeed = new CcxtFeed();
-          await ccxtFeed.start();
-          dataFeed = ccxtFeed;
+          // const ccxtFeed = new CcxtFeed();
+          // await ccxtFeed.start();
+          // dataFeed = ccxtFeed;
+          const predictorFeed = new PredictorFeed();
+          await predictorFeed.start();
+          dataFeed = predictorFeed;
         }
 
         const service = new ExampleProviderService(dataFeed);
