@@ -98,10 +98,18 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
-    const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
-    const predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
-    this.logger.log(`CCXT/PREDICTOR PRICE: [${feed.name}] ${ccxtPrice} / ${predictorPrice}`);
-    let price = ccxtPrice;
+    let price: number, ccxtPrice: number, predictorPrice: number;
+    if (["SHIB/USD", "BONK/USD", "LINK/USD", "WIF/USD"].includes(feed.name)) {
+      price = await this.getFeedPrice(feed, votingRoundId);
+      this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${ccxtPrice}`);
+    } else {
+      [ccxtPrice, predictorPrice] = await Promise.all([
+        this.getFeedPrice(feed, votingRoundId),
+        this.getFeedPricePredictor(feed, votingRoundId),
+      ]);
+      this.logger.log(`CCXT/PREDICTOR PRICE: [${feed.name}] ${ccxtPrice} / ${predictorPrice}`);
+      price = ccxtPrice;
+    }
 
     if (predictorPrice) {
       this.logger.log(`Using predicitor price for ${feed.name}`);
@@ -177,7 +185,7 @@ export class PredictorFeed implements BaseDataFeed {
   }
   private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
     const baseSymbol = feedId.name.split("/")[0];
-    const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/10000`;
+    const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
     this.logger.debug(`axios URL ${axiosURL}`);
     try {
       const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL);
