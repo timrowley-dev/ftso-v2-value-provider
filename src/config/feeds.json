@@ -1418,5 +1418,30 @@
         "symbol": "PYTH/USDT"
       }
     ]
+  },
+  {
+    "feed": { "category": 1, "name": "POL/USD" },
+    "sources": [
+      {
+        "exchange": "bingx",
+        "symbol": "POL/USDT"
+      },
+      {
+        "exchange": "bitfinex",
+        "symbol": "POL/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "POL/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "POL/USDT"
+      },
+      {
+        "exchange": "cex",
+        "symbol": "POL/USDT"
+      }
+    ]
   }
 ]
