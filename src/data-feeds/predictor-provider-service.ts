@@ -103,10 +103,11 @@ export class PredictorFeed implements BaseDataFeed {
       price = await this.getFeedPrice(feed, votingRoundId);
       this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${ccxtPrice}`);
     } else {
-      [ccxtPrice, predictorPrice] = await Promise.all([
-        this.getFeedPrice(feed, votingRoundId),
-        this.getFeedPricePredictor(feed, votingRoundId),
-      ]);
+      const promises = [this.getFeedPrice(feed, votingRoundId)];
+      if (process.env.PREDICTOR_ENABLED === "true") {
+        promises.push(this.getFeedPricePredictor(feed, votingRoundId));
+      }
+      [ccxtPrice, predictorPrice] = await Promise.all(promises);
       this.logger.log(`CCXT/PREDICTOR PRICE: [${feed.name}] ${ccxtPrice} / ${predictorPrice}`);
       price = ccxtPrice;
     }
@@ -195,7 +196,7 @@ export class PredictorFeed implements BaseDataFeed {
     const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
     this.logger.debug(`axios URL ${axiosURL}`);
     try {
-      const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL);
+      const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL, { timeout: 15000 });
       if (request && request.data) {
         const prediction = request.data.prediction / 100000;
         if (prediction == 0) return null;
@@ -203,7 +204,11 @@ export class PredictorFeed implements BaseDataFeed {
         return prediction as number;
       }
     } catch (error) {
-      this.logger.error(error);
+      if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
+        this.logger.warn("Predictor request timed out after 15 seconds");
+      } else {
+        this.logger.error(error);
+      }
       return null;
     }
     this.logger.debug(`Price from pred was null`);
