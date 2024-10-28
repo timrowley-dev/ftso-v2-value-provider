@@ -8,6 +8,14 @@ import axios, { AxiosResponse } from "axios";
 import * as dotenv from "dotenv";
 dotenv.config();
 
+// Environment variables interface
+interface EnvConfig {
+  NETWORK: networks;
+  PREDICTOR_HOST: string;
+  PREDICTOR_PORT: string;
+  PREDICTOR_ENABLED: string;
+}
+
 type networks = "local-test" | "from-env" | "coston2" | "coston" | "songbird";
 
 enum FeedCategory {
@@ -20,6 +28,10 @@ enum FeedCategory {
 
 const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
+const PREDICTOR_TIMEOUT_MS = 15_000;
+const PREDICTOR_MAX_RETRIES = 3;
+
+const CCXT_ONLY_SYMBOLS = ["SHIB/USD", "BONK/USD", "LINK/USD", "WIF/USD", "PEPE/USD", "ETH/USD"];
 
 interface FeedConfig {
   feed: FeedId;
@@ -42,6 +54,10 @@ interface PredictionResponse {
 
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
 
+/**
+ * PredictorFeed class implements BaseDataFeed interface and provides price feed functionality
+ * combining CCXT exchange data with predictor service data
+ */
 export class PredictorFeed implements BaseDataFeed {
   private readonly logger = new Logger(PredictorFeed.name);
   protected initialized = false;
@@ -52,6 +68,9 @@ export class PredictorFeed implements BaseDataFeed {
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
+  /**
+   * Initializes the feed service by loading config and connecting to exchanges
+   */
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -92,41 +111,63 @@ export class PredictorFeed implements BaseDataFeed {
     void this.watchTrades(exchangeToSymbols);
   }
 
+  /**
+   * Gets values for multiple feeds
+   * @param feeds Array of FeedId to get values for
+   * @param votingRoundId Current voting round ID
+   */
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
     const promises = feeds.map(feed => this.getValue(feed, votingRoundId));
     return Promise.all(promises);
   }
 
+  /**
+   * Gets value for a single feed
+   * @param feed FeedId to get value for
+   * @param votingRoundId Current voting round ID
+   */
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
     let price: number, ccxtPrice: number, predictorPrice: number;
-    if (["SHIB/USD", "BONK/USD", "LINK/USD", "WIF/USD"].includes(feed.name)) {
-      price = await this.getFeedPrice(feed, votingRoundId);
-      this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${ccxtPrice}`);
-    } else {
-      const promises = [this.getFeedPrice(feed, votingRoundId)];
-      if (process.env.PREDICTOR_ENABLED === "true") {
-        promises.push(this.getFeedPricePredictor(feed, votingRoundId));
-      }
-      [ccxtPrice, predictorPrice] = await Promise.all(promises);
-      this.logger.log(`CCXT/PREDICTOR PRICE: [${feed.name}] ${ccxtPrice} / ${predictorPrice}`);
-      price = ccxtPrice;
+    
+    // Always get CCXT price first
+    ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
+    if (ccxtPrice === undefined) {
+        throw new Error(`Unable to get CCXT price for ${feed.name}`);
+    }
+    price = ccxtPrice;
+
+    // Only get predictor price if enabled AND not in CCXT_ONLY_SYMBOLS
+    if (process.env.PREDICTOR_ENABLED === "true" && !CCXT_ONLY_SYMBOLS.includes(feed.name)) {
+        try {
+            predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
+            if (predictorPrice) {
+                this.logger.log(`Using predictor price for ${feed.name}: ${predictorPrice}`);
+                price = predictorPrice;
+            }
+        } catch (error) {
+            this.logger.warn(`Failed to get predictor price for ${feed.name}, using CCXT price: ${error.message}`);
+        }
     }
 
-    if (predictorPrice) {
-      this.logger.log(`Using predicitor price for ${feed.name}`);
-      price = predictorPrice;
-    }
+    this.logger.log(`Final price for [${feed.name}]: ${price} (Source: ${predictorPrice ? 'Predictor' : 'CCXT'})`);
 
     return {
-      feed: feed,
-      value: price,
+        feed: feed,
+        value: price,
     };
   }
 
+  /**
+   * Watches trades for specified exchanges and symbols
+   * @param exchangeToSymbols Map of exchange names to sets of symbols
+   */
   private async watchTrades(exchangeToSymbols: Map<string, Set<string>>) {
     for (const [exchangeName, symbols] of exchangeToSymbols) {
       const exchange = this.exchangeByName.get(exchangeName);
-      if (exchange === undefined) continue;
+      if (exchange === undefined) {
+        this.logger.warn(`Exchange ${exchangeName} not found, skipping`);
+        continue;
+      }
 
       const marketIds: string[] = [];
       for (const symbol of symbols) {
@@ -141,13 +182,22 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
+  /**
+   * Watches trades for a specific exchange
+   * @param exchange CCXT exchange instance
+   * @param marketIds Array of market IDs to watch
+   * @param exchangeName Name of the exchange
+   */
   private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
     this.logger.log(`Watching trades for ${marketIds} on exchange ${exchangeName}`);
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
-        const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
+        const trades = await retry(
+          async () => exchange.watchTradesForSymbols(marketIds, null, 100),
+          RETRY_BACKOFF_MS
+        );
         trades.forEach(trade => {
           const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
           prices.set(exchangeName, { price: trade.price, time: trade.timestamp, exchange: exchangeName });
@@ -155,9 +205,73 @@ export class PredictorFeed implements BaseDataFeed {
         });
       } catch (e) {
         this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
-        return;
+        // Add retry logic with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
+        this.logger.log(`Attempting to reconnect to ${exchangeName}...`);
+        continue;
       }
     }
+  }
+
+  /**
+   * Gets price from predictor service with retry logic
+   * @param feedId Feed identifier
+   * @param votingRound Voting round ID
+   */
+  private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
+    if (!feedId?.name) {
+      this.logger.error('Invalid feedId provided to getFeedPricePredictor');
+      return null;
+    }
+
+    if (!this.validatePredictorEnvVars()) {
+      return null;
+    }
+
+    const baseSymbol = feedId.name.split("/")[0];
+    const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
+    
+    return retry(
+      async () => {
+        try {
+          const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL, { 
+            timeout: PREDICTOR_TIMEOUT_MS 
+          });
+          
+          if (request?.data?.prediction) {
+            const prediction = request.data.prediction / 100000;
+            if (prediction === 0) return null;
+            this.logger.debug(`Price from predictor: ${prediction}`);
+            return prediction;
+          }
+          return null;
+        } catch (error) {
+          if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
+            this.logger.warn("Predictor request timed out");
+          } else {
+            this.logger.error(`Predictor request failed: ${error.message}`);
+          }
+          throw error; // Throw error to trigger retry
+        }
+      },
+      PREDICTOR_MAX_RETRIES,
+      RETRY_BACKOFF_MS,
+      this.logger
+    );
+  }
+
+  /**
+   * Validates predictor service environment variables
+   */
+  private validatePredictorEnvVars(): boolean {
+    const requiredVars = ['PREDICTOR_HOST', 'PREDICTOR_PORT'];
+    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+      this.logger.error(`Missing required environment variables: ${missingVars.join(', ')}`);
+      return false;
+    }
+    return true;
   }
 
   private async getFeedPrice(feedId: FeedId, votingRoundId: number): Promise<number> {
@@ -191,29 +305,6 @@ export class PredictorFeed implements BaseDataFeed {
     const result = prices.reduce((a, b) => a + b, 0) / prices.length;
     return result;
   }
-  private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
-    const baseSymbol = feedId.name.split("/")[0];
-    const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
-    this.logger.debug(`axios URL ${axiosURL}`);
-    try {
-      const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL, { timeout: 15000 });
-      if (request && request.data) {
-        const prediction = request.data.prediction / 100000;
-        if (prediction == 0) return null;
-        this.logger.debug(`Price from pred: ${prediction}`);
-        return prediction as number;
-      }
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
-        this.logger.warn("Predictor request timed out after 15 seconds");
-      } else {
-        this.logger.error(error);
-      }
-      return null;
-    }
-    this.logger.debug(`Price from pred was null`);
-    return null;
-  }
 
   private loadConfig() {
     const network = process.env.NETWORK as networks;
@@ -244,6 +335,11 @@ export class PredictorFeed implements BaseDataFeed {
   }
 }
 
+/**
+ * Compares two FeedIds for equality
+ * @param a First FeedId
+ * @param b Second FeedId
+ */
 function feedsEqual(a: FeedId, b: FeedId): boolean {
   return a.category === b.category && a.name === b.name;
 }
