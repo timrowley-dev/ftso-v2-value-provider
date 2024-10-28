@@ -99,9 +99,9 @@ export class PredictorFeed implements BaseDataFeed {
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
     let price: number, ccxtPrice: number, predictorPrice: number;
-    if (["SHIB/USD", "BONK/USD", "LINK/USD", "WIF/USD"].includes(feed.name)) {
+    if (["SHIB/USD", "BONK/USD", "LINK/USD", "WIF/USD", "ETH/USD"].includes(feed.name)) {
       price = await this.getFeedPrice(feed, votingRoundId);
-      this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${ccxtPrice}`);
+      this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${price}`);
     } else {
       const promises = [this.getFeedPrice(feed, votingRoundId)];
       if (process.env.PREDICTOR_ENABLED === "true") {
@@ -113,7 +113,7 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     if (predictorPrice) {
-      this.logger.log(`Using predicitor price for ${feed.name}`);
+      this.logger.log(`Using predictor price for ${feed.name}`);
       price = predictorPrice;
     }
 
