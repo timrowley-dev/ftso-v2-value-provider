@@ -28,19 +28,7 @@
         "symbol": "SGB/USD"
       },
       {
-        "exchange": "cex",
-        "symbol": "SGB/USD"
-      },
-      {
-        "exchange": "coinex",
-        "symbol": "SGB/USDT"
-      },
-      {
         "exchange": "gate",
-        "symbol": "SGB/USDT"
-      },
-      {
-        "exchange": "gateio",
         "symbol": "SGB/USDT"
       },
       {
@@ -74,6 +62,10 @@
       },
       {
         "exchange": "okx",
+        "symbol": "XRP/USDT"
+      },
+      {
+        "exchange": "binance",
         "symbol": "XRP/USDT"
       }
     ]
@@ -141,6 +133,14 @@
       {
         "exchange": "okx",
         "symbol": "XLM/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "XLM/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "XLM/USD"
       }
     ]
   },
@@ -437,26 +437,39 @@
       {
         "exchange": "binance",
         "symbol": "MATIC/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "POL/USD" },
+    "sources": [
+      {
+        "exchange": "bingx",
+        "symbol": "POL/USDT"
       },
       {
-        "exchange": "cryptocom",
-        "symbol": "MATIC/USDT"
+        "exchange": "bitfinex2",
+        "symbol": "POL/USDT"
       },
       {
-        "exchange": "cryptocom",
-        "symbol": "MATIC/USD"
+        "exchange": "bitget",
+        "symbol": "POL/USDT"
       },
       {
-        "exchange": "gate",
-        "symbol": "MATIC/USDT"
-      },
-      {
-        "exchange": "kucoin",
-        "symbol": "MATIC/USDT"
+        "exchange": "bybit",
+        "symbol": "POL/USDT"
       },
       {
         "exchange": "okx",
-        "symbol": "MATIC/USDT"
+        "symbol": "POL/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "POL/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "POL/USD"
       }
     ]
   },
@@ -526,11 +539,15 @@
         "symbol": "USDT/USD"
       },
       {
+<<<<<<< HEAD
         "exchange": "blockchaincom",
         "symbol": "USDT/USD"
       },
       {
         "exchange": "cex",
+=======
+        "exchange": "coinbase",
+>>>>>>> upstream/main
         "symbol": "USDT/USD"
       },
       {
@@ -543,6 +560,14 @@
     "feed": { "category": 1, "name": "XDC/USD" },
     "sources": [
       {
+        "exchange": "bybit",
+        "symbol": "XDC/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "XDC/USDT"
+      },
+      {
         "exchange": "bitget",
         "symbol": "XDC/USDT"
       },
@@ -553,6 +578,10 @@
       {
         "exchange": "kucoin",
         "symbol": "XDC/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "XDC/USDT"
       }
     ]
   },
@@ -561,6 +590,14 @@
     "sources": [
       {
         "exchange": "binance",
+        "symbol": "TRX/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "TRX/USDT"
+      },
+      {
+        "exchange": "htx",
         "symbol": "TRX/USDT"
       },
       {
@@ -824,12 +861,8 @@
         "symbol": "ETC/USDT"
       },
       {
-        "exchange": "cryptocom",
+        "exchange": "htx",
         "symbol": "ETC/USDT"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "ETC/USD"
       },
       {
         "exchange": "gate",
@@ -842,6 +875,14 @@
       {
         "exchange": "okx",
         "symbol": "ETC/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "ETC/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "ETC/USD"
       }
     ]
   },
@@ -1129,6 +1170,10 @@
         "symbol": "DAI/USDT"
       },
       {
+        "exchange": "bybit",
+        "symbol": "DAI/USDT"
+      },
+      {
         "exchange": "bitget",
         "symbol": "DAI/USDT"
       },
@@ -1226,6 +1271,14 @@
       {
         "exchange": "okx",
         "symbol": "LEO/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "LEO/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "LEO/USD"
       }
     ]
   },
@@ -1420,6 +1473,7 @@
     ]
   },
   {
+<<<<<<< HEAD
     "feed": { "category": 1, "name": "POL/USD" },
     "sources": [
       {
@@ -1441,6 +1495,430 @@
       {
         "exchange": "cex",
         "symbol": "POL/USDT"
+=======
+    "feed": { "category": 1, "name": "HNT/USD" },
+    "sources": [
+      {
+        "exchange": "binanceus",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "HNT/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "HNT/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "SUI/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "SUI/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "PEPE/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "PEPE/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "QNT/USD" },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "QNT/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "QNT/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "QNT/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "QNT/USD"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "QNT/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "QNT/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "AAVE/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "AAVE/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "FTM/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "FTM/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "ONDO/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "ONDO/USDT"
+      },
+      {
+        "exchange": "htx",
+        "symbol": "ONDO/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "TAO/USD" },
+    "sources": [
+      {
+        "exchange": "bingx",
+        "symbol": "TAO/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "TAO/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "TAO/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "TAO/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "TAO/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "TAO/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "TAO/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "FET/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "FET/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "RENDER/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "RENDER/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "NOT/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "NOT/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "NOT/USDT"
+      },
+      {
+        "exchange": "bitfinex2",
+        "symbol": "NOT/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "NOT/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "NOT/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "NOT/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "NOT/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "RUNE/USD" },
+    "sources": [
+      {
+        "exchange": "ascendex",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "gate",
+        "symbol": "RUNE/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "JOULE/USD" },
+    "sources": [
+      {
+        "exchange": "probit",
+        "symbol": "JOULE/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "JOULE/USDT"
+      }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "USDX/USD" },
+    "sources": [
+      {
+        "exchange": "bitmart",
+        "symbol": "USDX/USDT"
+>>>>>>> upstream/main
       }
     ]
   }

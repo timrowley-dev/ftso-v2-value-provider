@@ -1,9 +1,9 @@
 import { Logger } from "@nestjs/common";
-import ccxt, { Exchange } from "ccxt";
+import ccxt, { Exchange, Trade } from "ccxt";
 import { readFileSync } from "fs";
 import { FeedId, FeedValueData } from "../dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
-import { retry } from "src/utils/retry";
+import { retry, sleepFor } from "src/utils/retry";
 
 type networks = "local-test" | "from-env" | "coston2" | "coston" | "songbird";
 
@@ -71,6 +71,7 @@ export class CcxtFeed implements BaseDataFeed {
 
     for (const [exchangeName, loadExchange] of loadExchanges) {
       try {
+        this.logger.log(`Initializing exchange ${exchangeName}`);
         await loadExchange;
         this.logger.log(`Exchange ${exchangeName} initialized`);
       } catch (e) {
@@ -78,10 +79,11 @@ export class CcxtFeed implements BaseDataFeed {
         exchangeToSymbols.delete(exchangeName);
       }
     }
-    this.initialized = true;
 
+    await this.initWatchTrades(exchangeToSymbols);
+
+    this.initialized = true;
     this.logger.log(`Initialization done, watching trades...`);
-    void this.watchTrades(exchangeToSymbols);
   }
 
   async getValues(feeds: FeedId[]): Promise<FeedValueData[]> {
@@ -97,7 +99,7 @@ export class CcxtFeed implements BaseDataFeed {
     };
   }
 
-  private async watchTrades(exchangeToSymbols: Map<string, Set<string>>) {
+  private async initWatchTrades(exchangeToSymbols: Map<string, Set<string>>) {
     for (const [exchangeName, symbols] of exchangeToSymbols) {
       const exchange = this.exchangeByName.get(exchangeName);
       if (exchange === undefined) continue;
@@ -111,50 +113,135 @@ export class CcxtFeed implements BaseDataFeed {
         }
         marketIds.push(market.id);
       }
+
+      await this.populateInitialPrices(marketIds, exchangeName, exchange);
+
       void this.watch(exchange, marketIds, exchangeName);
+    }
+  }
+
+  private async populateInitialPrices(marketIds: string[], exchangeName: string, exchange: Exchange) {
+    try {
+      if (exchange.has["fetchTickers"]) {
+        this.logger.log(`Fetching last prices for ${marketIds} on ${exchangeName}`);
+        const tickers = await exchange.fetchTickers(marketIds);
+        for (const [marketId, ticker] of Object.entries(tickers)) {
+          if (ticker.last === undefined) {
+            this.logger.warn(`No last price found for ${marketId} on ${exchangeName}`);
+            continue;
+          }
+
+          this.setPrice(exchangeName, ticker.symbol, ticker.last, ticker.timestamp);
+        }
+      } else {
+        throw new Error("Exchange does not support fetchTickers");
+      }
+    } catch (e) {
+      this.logger.log(`Unable to retrieve ticker batch on ${exchangeName}: ${e}`);
+      this.logger.log(`Falling back to fetching individual tickers`);
+      for (const marketId of marketIds) {
+        this.logger.log(`Fetching last price for ${marketId} on ${exchangeName}`);
+        const ticker = await exchange.fetchTicker(marketId);
+        if (ticker === undefined) {
+          this.logger.warn(`Ticker not found for ${marketId} on ${exchangeName}`);
+          continue;
+        }
+        if (ticker.last === undefined) {
+          this.logger.log(`No last price found for ${marketId} on ${exchangeName}`);
+          continue;
+        }
+
+        this.setPrice(exchangeName, ticker.symbol, ticker.last, ticker.timestamp);
+      }
     }
   }
 
   private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
     this.logger.log(`Watching trades for ${marketIds} on exchange ${exchangeName}`);
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      try {
-        const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
-        trades.forEach(trade => {
-          const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-          prices.set(exchangeName, { price: trade.price, time: trade.timestamp, exchange: exchangeName });
-          this.prices.set(trade.symbol, prices);
-        });
-      } catch (e) {
-        this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
-        return;
+    if (exchange.has["watchTrades"]) {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        try {
+          const trades = await retry(
+            async () => exchange.watchTradesForSymbols(marketIds, null, 100),
+            RETRY_BACKOFF_MS
+          );
+          this.processTrades(trades, exchangeName);
+        } catch (e) {
+          this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
+          return;
+        }
+      }
+    } else if (exchange.has["fetchTrades"]) {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        try {
+          const trades: Trade[] = [];
+          for (const marketId of marketIds) {
+            const tradesForSymbol = await exchange.fetchTrades(marketId, null, 100);
+            trades.push(tradesForSymbol[tradesForSymbol.length - 1]);
+          }
+          this.processTrades(trades, exchangeName);
+
+          await sleepFor(1000);
+        } catch (e) {
+          this.logger.error(`Failed to fetch trades for ${exchangeName}: ${e}`);
+          await sleepFor(10_000);
+        }
       }
     }
   }
 
-  private async getFeedPrice(feedId: FeedId): Promise<number> {
+  private processTrades(trades: Trade[], exchangeName: string) {
+    trades.forEach(trade => {
+      this.setPrice(exchangeName, trade.symbol, trade.price, trade.timestamp);
+    });
+  }
+
+  private setPrice(exchangeName: string, symbol: string, price: number, timestamp: number) {
+    const prices = this.prices.get(symbol) || new Map<string, PriceInfo>();
+    prices.set(exchangeName, {
+      price: price,
+      time: timestamp,
+      exchange: exchangeName,
+    });
+    this.prices.set(symbol, prices);
+  }
+
+  private async getFeedPrice(feedId: FeedId): Promise<number | undefined> {
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
     if (!config) {
       this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
       return undefined;
     }
 
+    let usdtToUsd: number | undefined;
+
+    const convertToUsd = async (symbol: string, exchange: string, price: number) => {
+      if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId);
+      if (usdtToUsd === undefined) {
+        this.logger.warn(`Unable to retrieve USDT to USD conversion rate for ${symbol} at ${exchange}`);
+        return undefined;
+      }
+      return price * usdtToUsd;
+    };
+
     const prices: number[] = [];
 
-    let usdtToUsd = undefined;
-
+    // Gather all available prices
     for (const source of config.sources) {
       const info = this.prices.get(source.symbol)?.get(source.exchange);
-      if (info === undefined) continue;
+      // Skip if no price information is available
+      if (!info) continue;
 
-      if (source.symbol.endsWith("USDT")) {
-        if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId);
-        prices.push(info.price * usdtToUsd);
-      } else {
-        prices.push(info.price);
-      }
+      let price = info.price;
+
+      price = source.symbol.endsWith("USDT") ? await convertToUsd(source.symbol, source.exchange, price) : price;
+      if (price === undefined) continue;
+
+      // Add the price to our list for median calculation
+      prices.push(price);
     }
 
     if (prices.length === 0) {
@@ -162,8 +249,22 @@ export class CcxtFeed implements BaseDataFeed {
       return undefined;
     }
 
-    const result = prices.reduce((a, b) => a + b, 0) / prices.length;
-    return result;
+    // If single price found, return price
+    if (prices.length === 1) {
+      return prices[0];
+    }
+
+    // Sort the prices in ascending order
+    prices.sort((a, b) => a - b);
+
+    // Calculate the median
+    const mid = Math.floor(prices.length / 2);
+    const median =
+      prices.length % 2 !== 0
+        ? prices[mid] // Odd number of elements, take the middle one
+        : (prices[mid - 1] + prices[mid]) / 2; // Even number of elements, average the two middle ones
+
+    return median;
   }
 
   private loadConfig() {

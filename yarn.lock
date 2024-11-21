@@ -1710,9 +1710,15 @@ caniuse-lite@^1.0.30001640:
   integrity sha512-ERgWGNleEilSrHM6iUz/zJNSQTP8Mr21wDWpdgvRwcTXGAq6jMtOUPP4dqFPTdKqZ2wKTdtB+uucZ3MRpAUSmg==
 
 ccxt@^4.0.64:
+<<<<<<< HEAD
   version "4.3.67"
   resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-4.3.67.tgz#1174d1b34947deff8ce53f23d40f87e95019c07b"
   integrity sha512-b8echpNqnEqAn+IWnq5HZUIvogXtNpWBy5ub0MlG3O8t50iR7+1OQMkVTCoxVinH1ETwKZ2PEJwRecHtS1E5vg==
+=======
+  version "4.4.32"
+  resolved "https://registry.yarnpkg.com/ccxt/-/ccxt-4.4.32.tgz#b09debf33bccbec16709203a6cdb77a78611095f"
+  integrity sha512-bXmZ+VnE/xRr4CgpzRXIs3ENm5qQPRL5gBAY9gbRaSB+1RuaWmFawG/XyCO8h2tdQpdpmfBKu2zbJ1G60bW/Yg==
+>>>>>>> upstream/main
   dependencies:
     ws "^8.8.1"
 
