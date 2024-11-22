@@ -539,15 +539,7 @@
         "symbol": "USDT/USD"
       },
       {
-<<<<<<< HEAD
-        "exchange": "blockchaincom",
-        "symbol": "USDT/USD"
-      },
-      {
-        "exchange": "cex",
-=======
         "exchange": "coinbase",
->>>>>>> upstream/main
         "symbol": "USDT/USD"
       },
       {
