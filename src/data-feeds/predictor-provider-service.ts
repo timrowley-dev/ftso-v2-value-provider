@@ -207,7 +207,7 @@ export class PredictorFeed implements BaseDataFeed {
     try {
       const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL, { timeout: 15000 });
       if (request && request.data) {
-        const prediction = request.data.prediction * 100000;
+        const prediction = request.data.prediction;
         if (prediction == 0) return null;
         this.logger.debug(`Price from pred: ${prediction}`);
         return prediction;
