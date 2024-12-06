@@ -210,7 +210,7 @@ export class PredictorFeed implements BaseDataFeed {
         const prediction = request.data.prediction * 100000;
         if (prediction == 0) return null;
         this.logger.debug(`Price from pred: ${prediction}`);
-        return prediction as number;
+        return prediction;
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
