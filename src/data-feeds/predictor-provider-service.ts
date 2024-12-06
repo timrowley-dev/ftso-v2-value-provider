@@ -109,30 +109,28 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
-    let price: number, ccxtPrice: number, predictorPrice: number;
+    let price: number;
+
     if (["ETH/USD"].includes(feed.name)) {
+      // ETH/USD uses CCXT price only
       price = await this.getFeedPrice(feed, votingRoundId);
       this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${price}`);
     } else {
-      ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
+      // Get CCXT price
+      const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
+      let predictorPrice: number | null = null;
 
+      // Get predictor price if enabled
       if (process.env.PREDICTOR_ENABLED === "true") {
-        if (this.useAsyncPredictor) {
-          // Fetch predictor price in parallel
-          predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
-        } else {
-          // Fetch predictor price sequentially
-          predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
-        }
+        predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
       }
 
-      this.logger.log(`CCXT/PREDICTOR PRICE: [${feed.name}] ${ccxtPrice} / ${predictorPrice}`);
-      price = ccxtPrice;
-    }
-
-    if (predictorPrice) {
-      this.logger.log(`Using predictor price for ${feed.name}`);
-      price = predictorPrice;
+      // Use predictor price if available, otherwise use CCXT price
+      price = predictorPrice || ccxtPrice;
+      this.logger.log(
+        `[${feed.name}] Using ${predictorPrice ? 'predictor' : 'CCXT'} price: ${price} ` +
+        `(CCXT: ${ccxtPrice}, Predictor: ${predictorPrice || 'N/A'})`
+      );
     }
 
     return {
