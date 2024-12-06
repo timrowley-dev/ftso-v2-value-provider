@@ -52,6 +52,8 @@ export class PredictorFeed implements BaseDataFeed {
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
+  private readonly useAsyncPredictor: boolean = process.env.PREDICTOR_ASYNC === 'true';
+
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -93,8 +95,17 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
-    const promises = feeds.map(feed => this.getValue(feed, votingRoundId));
-    return Promise.all(promises);
+    if (this.useAsyncPredictor) {
+      const promises = feeds.map(feed => this.getValue(feed, votingRoundId));
+      return Promise.all(promises);
+    } else {
+      const results: FeedValueData[] = [];
+      for (const feed of feeds) {
+        const value = await this.getValue(feed, votingRoundId);
+        results.push(value);
+      }
+      return results;
+    }
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
@@ -103,11 +114,18 @@ export class PredictorFeed implements BaseDataFeed {
       price = await this.getFeedPrice(feed, votingRoundId);
       this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${price}`);
     } else {
-      const promises = [this.getFeedPrice(feed, votingRoundId)];
+      ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
+
       if (process.env.PREDICTOR_ENABLED === "true") {
-        promises.push(this.getFeedPricePredictor(feed, votingRoundId));
+        if (this.useAsyncPredictor) {
+          // Fetch predictor price in parallel
+          predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
+        } else {
+          // Fetch predictor price sequentially
+          predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
+        }
       }
-      [ccxtPrice, predictorPrice] = await Promise.all(promises);
+
       this.logger.log(`CCXT/PREDICTOR PRICE: [${feed.name}] ${ccxtPrice} / ${predictorPrice}`);
       price = ccxtPrice;
     }
