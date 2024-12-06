@@ -104,21 +104,17 @@ export class PredictorFeed implements BaseDataFeed {
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
     let price: number;
 
-    if (["ETH/USD"].includes(feed.name)) {
-      // ETH/USD uses CCXT price only
+    if ([].includes(feed.name) || votingRoundId === 0) {
       price = await this.getFeedPrice(feed, votingRoundId);
       this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${price}`);
     } else {
-      // Get CCXT price
       const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
       let predictorPrice: number | null = null;
 
-      // Get predictor price if enabled
       if (process.env.PREDICTOR_ENABLED === "true") {
         predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
       }
 
-      // Use predictor price if available, otherwise use CCXT price
       price = predictorPrice || ccxtPrice;
       this.logger.log(
         `[${feed.name}] Using ${predictorPrice ? 'predictor' : 'CCXT'} price: ${price} ` +
