@@ -52,8 +52,6 @@ export class PredictorFeed implements BaseDataFeed {
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
-  private readonly useAsyncPredictor: boolean = process.env.PREDICTOR_ASYNC === 'true';
-
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -95,17 +93,12 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
-    if (this.useAsyncPredictor) {
-      const promises = feeds.map(feed => this.getValue(feed, votingRoundId));
-      return Promise.all(promises);
-    } else {
-      const results: FeedValueData[] = [];
-      for (const feed of feeds) {
-        const value = await this.getValue(feed, votingRoundId);
-        results.push(value);
-      }
-      return results;
+    const results: FeedValueData[] = [];
+    for (const feed of feeds) {
+      const value = await this.getValue(feed, votingRoundId);
+      results.push(value);
     }
+    return results;
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
@@ -214,7 +207,7 @@ export class PredictorFeed implements BaseDataFeed {
     try {
       const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL, { timeout: 15000 });
       if (request && request.data) {
-        const prediction = request.data.prediction / 100000;
+        const prediction = request.data.prediction * 100000;
         if (prediction == 0) return null;
         this.logger.debug(`Price from pred: ${prediction}`);
         return prediction as number;
