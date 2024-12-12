@@ -49,8 +49,6 @@ export class CcxtFeed implements BaseDataFeed {
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
   async start() {
-    this.logger.warn(`Starting price feed with ${PRICE_CALCULATION_METHOD} calculation method`);
-
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
 
