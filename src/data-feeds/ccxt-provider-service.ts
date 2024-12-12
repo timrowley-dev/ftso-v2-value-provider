@@ -36,7 +36,7 @@ const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name:
 // Parameter for exponential decay in time-weighted median price calculation
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 
-const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || 'enhanced'; // 'weighted' or 'enhanced'
+const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD;
 
 export class CcxtFeed implements BaseDataFeed {
   protected initialized = false;
@@ -259,7 +259,7 @@ export class CcxtFeed implements BaseDataFeed {
     }
 
     this.logger.warn(`Using ${PRICE_CALCULATION_METHOD} calculation method for ${feedId.name}`);
-    return PRICE_CALCULATION_METHOD === 'enhanced' 
+    return PRICE_CALCULATION_METHOD === 'enhanced' || !PRICE_CALCULATION_METHOD
       ? this.getEnhancedPrice(prices) 
       : this.weightedMedian(prices);
   }
