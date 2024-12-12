@@ -258,60 +258,8 @@ export class CcxtFeed implements BaseDataFeed {
       return undefined;
     }
 
-    this.logger.warn(`Using ${PRICE_CALCULATION_METHOD} calculation method for ${feedId.name}`);
-    return PRICE_CALCULATION_METHOD === 'enhanced' || !PRICE_CALCULATION_METHOD
-      ? this.getEnhancedPrice(prices) 
-      : this.weightedMedian(prices);
-  }
-
-  private weightedMedian(prices: PriceInfo[]): number {
-    if (prices.length === 0) {
-      throw new Error("Price list cannot be empty.");
-    }
-
-    prices.sort((a, b) => a.time - b.time);
-
-    // Current time for weight calculation
-    const now = Date.now();
-
-    // Calculate exponential weights
-    const weights = prices.map(data => {
-      const timeDifference = now - data.time;
-      return Math.exp(-lambda * timeDifference); // Exponential decay
-    });
-
-    // Normalize weights to sum to 1
-    const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
-    const normalizedWeights = weights.map(weight => weight / weightSum);
-
-    // Combine prices and weights
-    const weightedPrices = prices.map((data, i) => ({
-      price: data.value,
-      weight: normalizedWeights[i],
-      exchange: data.exchange,
-      staleness: now - data.time,
-    }));
-
-    // Sort prices by value for median calculation
-    weightedPrices.sort((a, b) => a.price - b.price);
-
-    this.logger.log("Weighted prices:");
-    for (const { price, weight, exchange, staleness: we } of weightedPrices) {
-      this.logger.log(`Price: ${price}, weight: ${weight}, staleness ms: ${we}, exchange: ${exchange}`);
-    }
-
-    // Find the weighted median
-    let cumulativeWeight = 0;
-    for (let i = 0; i < weightedPrices.length; i++) {
-      cumulativeWeight += weightedPrices[i].weight;
-      if (cumulativeWeight >= 0.5) {
-        this.logger.log(`Weighted median: ${weightedPrices[i].price}`);
-        return weightedPrices[i].price;
-      }
-    }
-
-    this.logger.warn("Unable to calculate weighted median");
-    return undefined;
+    // Always use enhanced method
+    return this.getEnhancedPrice(prices);
   }
 
   private getEnhancedPrice(prices: PriceInfo[]): number {
