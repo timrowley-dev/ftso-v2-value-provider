@@ -18,6 +18,12 @@ enum FeedCategory {
   Stock = 4,
 }
 
+enum PricingMethod {
+  WEIGHTED = 'weighted',
+  ENHANCED = 'enhanced',
+  // Add more methods here as needed
+}
+
 const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
 
@@ -41,6 +47,8 @@ interface PredictionResponse {
 }
 
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
+
+const pricingMethod = (process.env.PRICING_METHOD || PricingMethod.WEIGHTED) as PricingMethod;
 
 export class PredictorFeed implements BaseDataFeed {
   private readonly logger = new Logger(PredictorFeed.name);
@@ -198,7 +206,17 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    return this.getEnhancedPrice(prices);
+    this.logger.debug(`Using ${pricingMethod} pricing method for ${feedId.name}`);
+    
+    switch (pricingMethod) {
+      case PricingMethod.ENHANCED:
+        return this.getEnhancedPrice(prices);
+      case PricingMethod.WEIGHTED:
+        return this.weightedMedian(prices);
+      default:
+        this.logger.warn(`Unknown pricing method ${pricingMethod}, falling back to weighted median`);
+        return this.weightedMedian(prices);
+    }
   }
 
   private getEnhancedPrice(prices: PriceInfo[]): number {
@@ -206,14 +224,26 @@ export class PredictorFeed implements BaseDataFeed {
       throw new Error("Price list cannot be empty.");
     }
 
+    this.logger.debug(`Starting enhanced price calculation with ${prices.length} prices`);
+    
     // Step 1: Remove stale prices (older than 5 minutes)
     const now = Date.now();
     const MAX_STALENESS = 5 * 60 * 1000;
     let filteredPrices = prices.filter(p => (now - p.time) <= MAX_STALENESS);
 
+    this.logger.debug(
+      `Staleness check (${MAX_STALENESS}ms): ` +
+      `${prices.length - filteredPrices.length} stale prices removed. ` +
+      `${filteredPrices.length} prices remaining`
+    );
+
     if (filteredPrices.length === 0) {
       const mostRecentTime = Math.max(...prices.map(p => p.time));
       filteredPrices = prices.filter(p => p.time === mostRecentTime);
+      this.logger.warn(
+        `All prices were stale. Falling back to most recent prices (${mostRecentTime}). ` +
+        `${filteredPrices.length} prices selected`
+      );
     }
 
     // Step 2: Remove outliers using IQR method
@@ -224,11 +254,28 @@ export class PredictorFeed implements BaseDataFeed {
     const lowerBound = q1 - 1.5 * iqr;
     const upperBound = q3 + 1.5 * iqr;
 
+    this.logger.debug(
+      `IQR Analysis: Q1=${q1.toFixed(8)}, Q3=${q3.toFixed(8)}, IQR=${iqr.toFixed(8)}`
+    );
+
+    const pricesBeforeOutlierRemoval = filteredPrices.length;
     filteredPrices = filteredPrices.filter(p => 
       p.price >= lowerBound && p.price <= upperBound
     );
 
-    this.logger.warn(`[Enhanced] Removed ${prices.length - filteredPrices.length} outliers. Range: ${lowerBound}-${upperBound}`);
+    this.logger.debug(
+      `Outlier removal: ${pricesBeforeOutlierRemoval - filteredPrices.length} prices removed. ` +
+      `Valid range: ${lowerBound.toFixed(8)} to ${upperBound.toFixed(8)}`
+    );
+
+    if (pricesBeforeOutlierRemoval - filteredPrices.length > 0) {
+      this.logger.warn(
+        `Removed outliers: ${prices
+          .filter(p => p.price < lowerBound || p.price > upperBound)
+          .map(p => `${p.exchange}: ${p.price.toFixed(8)} (${now - p.time}ms old)`)
+          .join(', ')}`
+      );
+    }
 
     // Step 3: Calculate confidence-weighted scores
     const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
@@ -246,18 +293,25 @@ export class PredictorFeed implements BaseDataFeed {
         price: data.price,
         weight: totalWeight,
         exchange: data.exchange,
-        staleness: now - data.time
+        staleness: now - data.time,
+        timeWeight,
+        exchangeWeight,
+        deviationWeight
       };
     });
 
     priceScores.sort((a, b) => a.price - b.price);
 
     // Log detailed price information
-    this.logger.log("Enhanced weighted prices:");
-    priceScores.forEach(({ price, weight, exchange, staleness }) => {
-      this.logger.log(
-        `Price: ${price}, Weight: ${weight.toFixed(4)}, ` +
-        `Exchange: ${exchange}, Staleness: ${staleness}ms`
+    this.logger.debug(`Price weight components (lambda=${lambda}):`);
+    priceScores.forEach(({ price, exchange, staleness, timeWeight, exchangeWeight, deviationWeight, weight }) => {
+      this.logger.debug(
+        `${exchange}: ${price.toFixed(8)} | ` +
+        `Age: ${staleness}ms | ` +
+        `Weights [Time: ${timeWeight.toFixed(4)}, ` +
+        `Exchange: ${exchangeWeight.toFixed(4)}, ` +
+        `Deviation: ${deviationWeight.toFixed(4)}] = ` +
+        `Final: ${weight.toFixed(4)}`
       );
     });
 
@@ -268,7 +322,10 @@ export class PredictorFeed implements BaseDataFeed {
     for (const score of priceScores) {
       cumulativeWeight += score.weight / totalWeight;
       if (cumulativeWeight >= 0.5) {
-        this.logger.log(`Final enhanced weighted median: ${score.price}`);
+        this.logger.debug(
+          `Selected median price ${score.price.toFixed(8)} from ${score.exchange} ` +
+          `(cumulative weight: ${cumulativeWeight.toFixed(4)})`
+        );
         return score.price;
       }
     }
