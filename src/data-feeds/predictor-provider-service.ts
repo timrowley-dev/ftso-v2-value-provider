@@ -172,20 +172,25 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    const prices: number[] = [];
-
     let usdtToUsd = undefined;
+    const prices: PriceInfo[] = [];
+    const now = Date.now();
 
     for (const source of config.sources) {
       const info = this.prices.get(source.symbol)?.get(source.exchange);
       if (info === undefined) continue;
 
+      let price = info.price;
       if (source.symbol.endsWith("USDT")) {
         if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
-        prices.push(info.price * usdtToUsd);
-      } else {
-        prices.push(info.price);
+        price = price * usdtToUsd;
       }
+
+      prices.push({
+        price: price,
+        time: info.time,
+        exchange: info.exchange
+      });
     }
 
     if (prices.length === 0) {
@@ -193,9 +198,116 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    const result = prices.reduce((a, b) => a + b, 0) / prices.length;
-    return result;
+    return this.getEnhancedPrice(prices);
   }
+
+  private getEnhancedPrice(prices: PriceInfo[]): number {
+    if (prices.length === 0) {
+      throw new Error("Price list cannot be empty.");
+    }
+
+    // Step 1: Remove stale prices (older than 5 minutes)
+    const now = Date.now();
+    const MAX_STALENESS = 5 * 60 * 1000;
+    let filteredPrices = prices.filter(p => (now - p.time) <= MAX_STALENESS);
+
+    if (filteredPrices.length === 0) {
+      const mostRecentTime = Math.max(...prices.map(p => p.time));
+      filteredPrices = prices.filter(p => p.time === mostRecentTime);
+    }
+
+    // Step 2: Remove outliers using IQR method
+    const values = filteredPrices.map(p => p.price).sort((a, b) => a - b);
+    const q1 = this.getQuantile(values, 0.25);
+    const q3 = this.getQuantile(values, 0.75);
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+
+    filteredPrices = filteredPrices.filter(p => 
+      p.price >= lowerBound && p.price <= upperBound
+    );
+
+    this.logger.warn(`[Enhanced] Removed ${prices.length - filteredPrices.length} outliers. Range: ${lowerBound}-${upperBound}`);
+
+    // Step 3: Calculate confidence-weighted scores
+    const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
+    const priceScores = filteredPrices.map(data => {
+      const timeWeight = Math.exp(-lambda * (now - data.time));
+      const exchangeWeight = this.getExchangeReliability(data.exchange);
+      
+      const mean = this.calculateMean(filteredPrices.map(p => p.price));
+      const std = this.calculateStandardDeviation(filteredPrices.map(p => p.price), mean);
+      const deviationWeight = std === 0 ? 1 : Math.exp(-Math.pow(data.price - mean, 2) / (2 * Math.pow(std, 2)));
+
+      const totalWeight = timeWeight * exchangeWeight * deviationWeight;
+
+      return {
+        price: data.price,
+        weight: totalWeight,
+        exchange: data.exchange,
+        staleness: now - data.time
+      };
+    });
+
+    priceScores.sort((a, b) => a.price - b.price);
+
+    // Log detailed price information
+    this.logger.log("Enhanced weighted prices:");
+    priceScores.forEach(({ price, weight, exchange, staleness }) => {
+      this.logger.log(
+        `Price: ${price}, Weight: ${weight.toFixed(4)}, ` +
+        `Exchange: ${exchange}, Staleness: ${staleness}ms`
+      );
+    });
+
+    // Calculate weighted median
+    let cumulativeWeight = 0;
+    const totalWeight = priceScores.reduce((sum, { weight }) => sum + weight, 0);
+
+    for (const score of priceScores) {
+      cumulativeWeight += score.weight / totalWeight;
+      if (cumulativeWeight >= 0.5) {
+        this.logger.log(`Final enhanced weighted median: ${score.price}`);
+        return score.price;
+      }
+    }
+
+    this.logger.warn("Unable to calculate enhanced weighted median");
+    return undefined;
+  }
+
+  // Helper methods needed for enhanced price calculation
+  private getQuantile(sortedValues: number[], q: number): number {
+    const pos = (sortedValues.length - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    if (sortedValues[base + 1] !== undefined) {
+      return sortedValues[base] + rest * (sortedValues[base + 1] - sortedValues[base]);
+    } else {
+      return sortedValues[base];
+    }
+  }
+
+  private calculateMean(values: number[]): number {
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
+  }
+
+  private calculateStandardDeviation(values: number[], mean: number): number {
+    const squareDiffs = values.map(value => Math.pow(value - mean, 2));
+    return Math.sqrt(squareDiffs.reduce((sum, diff) => sum + diff, 0) / values.length);
+  }
+
+  private getExchangeReliability(exchange: string): number {
+    const reliabilityScores = {
+      'binance': 1.0,
+      'coinbase': 0.95,
+      'kraken': 0.9,
+      'default': 0.8
+    };
+    return reliabilityScores[exchange] || reliabilityScores.default;
+  }
+
   private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
     const baseSymbol = feedId.name.split("/")[0];
     const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
