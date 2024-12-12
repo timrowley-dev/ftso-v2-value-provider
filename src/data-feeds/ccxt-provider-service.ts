@@ -253,7 +253,7 @@ export class CcxtFeed implements BaseDataFeed {
       return undefined;
     }
 
-    this.logger.debug(`Calculating results for ${JSON.stringify(feedId)} using ${PRICE_CALCULATION_METHOD} method`);
+    this.logger.warn(`Using ${PRICE_CALCULATION_METHOD} calculation method for ${feedId.name}`);
     return PRICE_CALCULATION_METHOD === 'enhanced' 
       ? this.getEnhancedPrice(prices) 
       : this.weightedMedian(prices);
@@ -290,9 +290,9 @@ export class CcxtFeed implements BaseDataFeed {
     // Sort prices by value for median calculation
     weightedPrices.sort((a, b) => a.price - b.price);
 
-    this.logger.debug("Weighted prices:");
+    this.logger.log("Weighted prices:");
     for (const { price, weight, exchange, staleness: we } of weightedPrices) {
-      this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${we}, exchange: ${exchange}`);
+      this.logger.log(`Price: ${price}, weight: ${weight}, staleness ms: ${we}, exchange: ${exchange}`);
     }
 
     // Find the weighted median
@@ -300,7 +300,7 @@ export class CcxtFeed implements BaseDataFeed {
     for (let i = 0; i < weightedPrices.length; i++) {
       cumulativeWeight += weightedPrices[i].weight;
       if (cumulativeWeight >= 0.5) {
-        this.logger.debug(`Weighted median: ${weightedPrices[i].price}`);
+        this.logger.log(`Weighted median: ${weightedPrices[i].price}`);
         return weightedPrices[i].price;
       }
     }
@@ -338,7 +338,7 @@ export class CcxtFeed implements BaseDataFeed {
     );
 
     // Log outlier removal results
-    this.logger.debug(`Removed ${prices.length - filteredPrices.length} outliers. Original range: ${Math.min(...values)}-${Math.max(...values)}, New range: ${lowerBound}-${upperBound}`);
+    this.logger.warn(`[Enhanced] Removed ${prices.length - filteredPrices.length} outliers for ${filteredPrices[0]?.exchange}. Range: ${lowerBound}-${upperBound}`);
 
     // Step 3: Calculate confidence-weighted scores
     const priceScores = filteredPrices.map(data => {
@@ -368,9 +368,9 @@ export class CcxtFeed implements BaseDataFeed {
     priceScores.sort((a, b) => a.price - b.price);
 
     // Log detailed price information
-    this.logger.debug("Enhanced weighted prices:");
+    this.logger.log("Enhanced weighted prices:");
     priceScores.forEach(({ price, weight, exchange, staleness }) => {
-      this.logger.debug(
+      this.logger.log(
         `Price: ${price}, Weight: ${weight.toFixed(4)}, ` +
         `Exchange: ${exchange}, Staleness: ${staleness}ms`
       );
@@ -383,7 +383,7 @@ export class CcxtFeed implements BaseDataFeed {
     for (const score of priceScores) {
       cumulativeWeight += score.weight / totalWeight;
       if (cumulativeWeight >= 0.5) {
-        this.logger.debug(`Final enhanced weighted median: ${score.price}`);
+        this.logger.log(`Final enhanced weighted median: ${score.price}`);
         return score.price;
       }
     }
