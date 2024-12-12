@@ -416,6 +416,57 @@ export class PredictorFeed implements BaseDataFeed {
       throw err;
     }
   }
+
+  private weightedMedian(prices: PriceInfo[]): number {
+    if (prices.length === 0) {
+      throw new Error("Price list cannot be empty.");
+    }
+
+    prices.sort((a, b) => a.time - b.time);
+
+    // Current time for weight calculation
+    const now = Date.now();
+
+    // Calculate exponential weights
+    const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
+    const weights = prices.map(data => {
+      const timeDifference = now - data.time;
+      return Math.exp(-lambda * timeDifference); // Exponential decay
+    });
+
+    // Normalize weights to sum to 1
+    const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+    const normalizedWeights = weights.map(weight => weight / weightSum);
+
+    // Combine prices and weights
+    const weightedPrices = prices.map((data, i) => ({
+      price: data.price,
+      weight: normalizedWeights[i],
+      exchange: data.exchange,
+      staleness: now - data.time,
+    }));
+
+    // Sort prices by value for median calculation
+    weightedPrices.sort((a, b) => a.price - b.price);
+
+    this.logger.debug("Weighted prices:");
+    for (const { price, weight, exchange, staleness } of weightedPrices) {
+      this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
+    }
+
+    // Find the weighted median
+    let cumulativeWeight = 0;
+    for (let i = 0; i < weightedPrices.length; i++) {
+      cumulativeWeight += weightedPrices[i].weight;
+      if (cumulativeWeight >= 0.5) {
+        this.logger.debug(`Weighted median: ${weightedPrices[i].price}`);
+        return weightedPrices[i].price;
+      }
+    }
+
+    this.logger.warn("Unable to calculate weighted median");
+    return undefined;
+  }
 }
 
 function feedsEqual(a: FeedId, b: FeedId): boolean {
