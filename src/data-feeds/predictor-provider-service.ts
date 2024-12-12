@@ -60,6 +60,8 @@ export class PredictorFeed implements BaseDataFeed {
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
+  private lastReportedRound: number = -1;
+
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -110,6 +112,12 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
+    // Report pricing method once per round
+    if (this.lastReportedRound !== votingRoundId) {
+        this.logger.log(`Round ${votingRoundId}: Using ${pricingMethod.toUpperCase()} pricing method`);
+        this.lastReportedRound = votingRoundId;
+    }
+
     let price: number;
     let priceSource: 'CCXT' | 'Predictor';
     
@@ -117,12 +125,32 @@ export class PredictorFeed implements BaseDataFeed {
     const feedConfig = this.config.find(config => feedsEqual(config.feed, feed));
     const configuredSources = feedConfig?.sources.length || 0;
     
-    // Get the number of active sources (those currently providing prices)
-    const activeSources = Array.from(this.prices.entries())
-      .filter(([symbol]) => feedConfig?.sources.some(source => source.symbol === symbol))
-      .length;
+    // Get detailed source information
+    const sourceDetails = feedConfig?.sources.map(source => {
+        const hasPrice = this.prices.get(source.symbol)?.get(source.exchange) !== undefined;
+        return {
+            exchange: source.exchange,
+            symbol: source.symbol,
+            hasPrice,
+            lastPrice: this.prices.get(source.symbol)?.get(source.exchange)?.price,
+            lastUpdate: this.prices.get(source.symbol)?.get(source.exchange)?.time
+        };
+    }) || [];
 
+    const activeSources = sourceDetails.filter(s => s.hasPrice).length;
     const sourcesInfo = `[${feed.name}][${activeSources}/${configuredSources} sources]`;
+
+    // Log detailed source status
+    this.logger.debug(`Source status for ${feed.name}:`);
+    sourceDetails.forEach(source => {
+        const timeAgo = source.lastUpdate ? `${((Date.now() - source.lastUpdate)/1000).toFixed(1)}s ago` : 'never';
+        this.logger.debug(
+            `- ${source.exchange} (${source.symbol}): ` +
+            `${source.hasPrice ? 'active' : 'inactive'}, ` +
+            `last price: ${source.lastPrice || 'none'}, ` +
+            `updated: ${timeAgo}`
+        );
+    });
 
     if ([].includes(feed.name) || votingRoundId === 0) {
       price = await this.getFeedPrice(feed, votingRoundId);
