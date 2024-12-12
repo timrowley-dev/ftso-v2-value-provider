@@ -39,19 +39,22 @@ const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) :
 const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || 'enhanced'; // 'weighted' or 'enhanced'
 
 export class CcxtFeed implements BaseDataFeed {
-  private readonly logger = new Logger(CcxtFeed.name);
   protected initialized = false;
-  private config: FeedConfig[];
-
   private readonly exchangeByName: Map<string, Exchange> = new Map();
 
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
+  constructor(
+    private readonly logger: Logger,
+    private readonly config: FeedConfig[],
+  ) {
+    this.logger.warn(`CcxtFeed initialized with ${PRICE_CALCULATION_METHOD} calculation method`);
+  }
+
   async start() {
     this.logger.warn(`Starting price feed with ${PRICE_CALCULATION_METHOD} calculation method`);
 
-    this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
 
     for (const feed of this.config) {
