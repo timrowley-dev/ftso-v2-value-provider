@@ -54,13 +54,12 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly logger = new Logger(PredictorFeed.name);
   protected initialized = false;
   private config: FeedConfig[];
+  private lastReportedRound: number = -1;
 
   private readonly exchangeByName: Map<string, Exchange> = new Map();
 
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
-
-  private lastReportedRound: number = -1;
 
   async start() {
     this.config = this.loadConfig();
