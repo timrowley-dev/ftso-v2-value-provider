@@ -111,10 +111,22 @@ export class PredictorFeed implements BaseDataFeed {
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
     let price: number;
+    let priceSource: 'CCXT' | 'Predictor';
+    
+    // Get the number of configured sources for this feed
+    const feedConfig = this.config.find(config => feedsEqual(config.feed, feed));
+    const configuredSources = feedConfig?.sources.length || 0;
+    
+    // Get the number of active sources (those currently providing prices)
+    const activeSources = Array.from(this.prices.entries())
+      .filter(([symbol]) => feedConfig?.sources.some(source => source.symbol === symbol))
+      .length;
+
+    const sourcesInfo = `[${feed.name}][${activeSources}/${configuredSources} sources]`;
 
     if ([].includes(feed.name) || votingRoundId === 0) {
       price = await this.getFeedPrice(feed, votingRoundId);
-      this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${price}`);
+      this.logger.log(`CCXT (ONLY) PRICE: ${sourcesInfo} ${price}`);
     } else {
       const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
       let predictorPrice: number | null = null;
@@ -124,8 +136,10 @@ export class PredictorFeed implements BaseDataFeed {
       }
 
       price = predictorPrice || ccxtPrice;
+      priceSource = predictorPrice ? 'Predictor' : 'CCXT';
+      
       this.logger.log(
-        `[${feed.name}] Using ${predictorPrice ? 'predictor' : 'CCXT'} price: ${price} ` +
+        `${sourcesInfo} Using ${predictorPrice ? 'predictor' : 'CCXT'} price: ${price} ` +
         `(CCXT: ${ccxtPrice}, Predictor: ${predictorPrice || 'N/A'})`
       );
     }
