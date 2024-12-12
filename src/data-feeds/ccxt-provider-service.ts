@@ -36,6 +36,8 @@ const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name:
 // Parameter for exponential decay in time-weighted median price calculation
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 
+const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || 'enhanced'; // 'weighted' or 'enhanced'
+
 export class CcxtFeed implements BaseDataFeed {
   private readonly logger = new Logger(CcxtFeed.name);
   protected initialized = false;
@@ -231,10 +233,8 @@ export class CcxtFeed implements BaseDataFeed {
 
     const prices: PriceInfo[] = [];
 
-    // Gather all available prices
     for (const source of config.sources) {
       const info = this.prices.get(source.symbol)?.get(source.exchange);
-      // Skip if no price information is available
       if (!info) continue;
 
       let price = info.value;
@@ -242,7 +242,6 @@ export class CcxtFeed implements BaseDataFeed {
       price = source.symbol.endsWith("USDT") ? await convertToUsd(source.symbol, source.exchange, price) : price;
       if (price === undefined) continue;
 
-      // Add the price to our list for median calculation
       prices.push({
         ...info,
         value: price,
@@ -254,8 +253,10 @@ export class CcxtFeed implements BaseDataFeed {
       return undefined;
     }
 
-    this.logger.debug(`Calculating results for ${JSON.stringify(feedId)}`);
-    return this.weightedMedian(prices);
+    this.logger.debug(`Calculating results for ${JSON.stringify(feedId)} using ${PRICE_CALCULATION_METHOD} method`);
+    return PRICE_CALCULATION_METHOD === 'enhanced' 
+      ? this.getEnhancedPrice(prices) 
+      : this.weightedMedian(prices);
   }
 
   private weightedMedian(prices: PriceInfo[]): number {
@@ -306,6 +307,120 @@ export class CcxtFeed implements BaseDataFeed {
 
     this.logger.warn("Unable to calculate weighted median");
     return undefined;
+  }
+
+  private getEnhancedPrice(prices: PriceInfo[]): number {
+    if (prices.length === 0) {
+      throw new Error("Price list cannot be empty.");
+    }
+
+    // Step 1: Remove stale prices (older than 5 minutes)
+    const now = Date.now();
+    const MAX_STALENESS = 5 * 60 * 1000; // 5 minutes in milliseconds
+    let filteredPrices = prices.filter(p => (now - p.time) <= MAX_STALENESS);
+
+    // If all prices are stale, use the most recent ones
+    if (filteredPrices.length === 0) {
+      const mostRecentTime = Math.max(...prices.map(p => p.time));
+      filteredPrices = prices.filter(p => p.time === mostRecentTime);
+    }
+
+    // Step 2: Remove outliers using IQR method
+    const values = filteredPrices.map(p => p.value).sort((a, b) => a - b);
+    const q1 = this.getQuantile(values, 0.25);
+    const q3 = this.getQuantile(values, 0.75);
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+
+    filteredPrices = filteredPrices.filter(p => 
+      p.value >= lowerBound && p.value <= upperBound
+    );
+
+    // Log outlier removal results
+    this.logger.debug(`Removed ${prices.length - filteredPrices.length} outliers. Original range: ${Math.min(...values)}-${Math.max(...values)}, New range: ${lowerBound}-${upperBound}`);
+
+    // Step 3: Calculate confidence-weighted scores
+    const priceScores = filteredPrices.map(data => {
+      // Time decay weight (exponential)
+      const timeWeight = Math.exp(-lambda * (now - data.time));
+      
+      // Exchange reliability weight
+      const exchangeWeight = this.getExchangeReliability(data.exchange);
+      
+      // Price deviation weight (lower weight for prices far from mean)
+      const mean = this.calculateMean(filteredPrices.map(p => p.value));
+      const std = this.calculateStandardDeviation(filteredPrices.map(p => p.value), mean);
+      const deviationWeight = std === 0 ? 1 : Math.exp(-Math.pow(data.value - mean, 2) / (2 * Math.pow(std, 2)));
+
+      // Combine weights
+      const totalWeight = timeWeight * exchangeWeight * deviationWeight;
+
+      return {
+        price: data.value,
+        weight: totalWeight,
+        exchange: data.exchange,
+        staleness: now - data.time
+      };
+    });
+
+    // Sort by price for weighted median calculation
+    priceScores.sort((a, b) => a.price - b.price);
+
+    // Log detailed price information
+    this.logger.debug("Enhanced weighted prices:");
+    priceScores.forEach(({ price, weight, exchange, staleness }) => {
+      this.logger.debug(
+        `Price: ${price}, Weight: ${weight.toFixed(4)}, ` +
+        `Exchange: ${exchange}, Staleness: ${staleness}ms`
+      );
+    });
+
+    // Calculate weighted median
+    let cumulativeWeight = 0;
+    const totalWeight = priceScores.reduce((sum, { weight }) => sum + weight, 0);
+
+    for (const score of priceScores) {
+      cumulativeWeight += score.weight / totalWeight;
+      if (cumulativeWeight >= 0.5) {
+        this.logger.debug(`Final enhanced weighted median: ${score.price}`);
+        return score.price;
+      }
+    }
+
+    this.logger.warn("Unable to calculate enhanced weighted median");
+    return undefined;
+  }
+
+  private getQuantile(sortedValues: number[], q: number): number {
+    const pos = (sortedValues.length - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    if (sortedValues[base + 1] !== undefined) {
+      return sortedValues[base] + rest * (sortedValues[base + 1] - sortedValues[base]);
+    } else {
+      return sortedValues[base];
+    }
+  }
+
+  private calculateMean(values: number[]): number {
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
+  }
+
+  private calculateStandardDeviation(values: number[], mean: number): number {
+    const squareDiffs = values.map(value => Math.pow(value - mean, 2));
+    return Math.sqrt(squareDiffs.reduce((sum, diff) => sum + diff, 0) / values.length);
+  }
+
+  private getExchangeReliability(exchange: string): number {
+    const reliabilityScores = {
+      'binance': 1.0,
+      'coinbase': 0.95,
+      'kraken': 0.9,
+      // Add more exchanges as needed
+      'default': 0.8
+    };
+    return reliabilityScores[exchange] || reliabilityScores.default;
   }
 
   private loadConfig() {
