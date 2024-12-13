@@ -39,6 +39,7 @@ interface PriceInfo {
   price: number;
   time: number;
   exchange: string;
+  type?: 'USDT' | 'USDC';
 }
 
 interface PredictionResponse {
@@ -47,6 +48,7 @@ interface PredictionResponse {
 }
 
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
+const usdcToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDC/USD" };
 
 const pricingMethod = (process.env.PRICING_METHOD || PricingMethod.WEIGHTED) as PricingMethod;
 
@@ -222,30 +224,62 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     let usdtToUsd = undefined;
+    let usdcToUsd = undefined;
     const prices: PriceInfo[] = [];
     const now = Date.now();
 
+    // Get both USDT and USDC conversion rates upfront if needed
+    const hasUsdtPairs = config.sources.some(source => source.symbol.endsWith("USDT"));
+    const hasUsdcPairs = config.sources.some(source => source.symbol.endsWith("USDC"));
+    
+    if (hasUsdtPairs) {
+        usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
+    }
+    if (hasUsdcPairs) {
+        usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId);
+    }
+
+    // Add prices from USDT and USDC sources
     for (const source of config.sources) {
       const info = this.prices.get(source.symbol)?.get(source.exchange);
       if (info === undefined) continue;
 
+      const isUsdtPair = source.symbol.endsWith("USDT");
+      const isUsdcPair = source.symbol.endsWith("USDC");
+
+      // Only process USDT and USDC pairs
+      if (!isUsdtPair && !isUsdcPair) continue;
+
       let price = info.price;
-      if (source.symbol.endsWith("USDT")) {
-        if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
+
+      // Convert to USD
+      if (isUsdtPair && usdtToUsd) {
         price = price * usdtToUsd;
+      } else if (isUsdcPair && usdcToUsd) {
+        price = price * usdcToUsd;
       }
 
       prices.push({
         price: price,
         time: info.time,
-        exchange: info.exchange
+        exchange: info.exchange,
+        type: isUsdtPair ? 'USDT' : 'USDC'
       });
     }
 
     if (prices.length === 0) {
-      this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
+      this.logger.warn(`No USDT/USDC prices found for ${JSON.stringify(feedId)}`);
       return undefined;
     }
+
+    // Log the distribution of price sources
+    const usdtCount = prices.filter(p => p.type === 'USDT').length;
+    const usdcCount = prices.filter(p => p.type === 'USDC').length;
+    
+    this.logger.debug(
+      `Price sources distribution for ${feedId.name}: ` +
+      `USDT: ${usdtCount}, USDC: ${usdcCount}`
+    );
 
     this.logger.debug(`Using ${pricingMethod} pricing method for ${feedId.name}`);
     
@@ -517,6 +551,9 @@ export class PredictorFeed implements BaseDataFeed {
 
       if (config.find(feed => feedsEqual(feed.feed, usdtToUsdFeedId)) === undefined) {
         throw new Error("Must provide USDT feed sources, as it is used for USD conversion.");
+      }
+      if (config.find(feed => feedsEqual(feed.feed, usdcToUsdFeedId)) === undefined) {
+        throw new Error("Must provide USDC feed sources, as it is used for USD conversion.");
       }
 
       this.logger.log(`Supported feeds: ${JSON.stringify(config.map(f => f.feed))}`);
