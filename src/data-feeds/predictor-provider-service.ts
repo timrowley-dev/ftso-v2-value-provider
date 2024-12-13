@@ -232,11 +232,16 @@ export class PredictorFeed implements BaseDataFeed {
     const hasUsdtPairs = config.sources.some(source => source.symbol.endsWith("USDT"));
     const hasUsdcPairs = config.sources.some(source => source.symbol.endsWith("USDC"));
     
-    if (hasUsdtPairs) {
-        usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
-    }
-    if (hasUsdcPairs) {
-        usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId);
+    // Only get conversion rates if we're not already processing a conversion rate feed
+    const isConversionFeed = feedsEqual(feedId, usdtToUsdFeedId) || feedsEqual(feedId, usdcToUsdFeedId);
+    
+    if (!isConversionFeed) {
+        if (hasUsdtPairs) {
+            usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
+        }
+        if (hasUsdcPairs) {
+            usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId);
+        }
     }
 
     // Add prices from USDT and USDC sources
@@ -252,11 +257,13 @@ export class PredictorFeed implements BaseDataFeed {
 
       let price = info.price;
 
-      // Convert to USD
-      if (isUsdtPair && usdtToUsd) {
-        price = price * usdtToUsd;
-      } else if (isUsdcPair && usdcToUsd) {
-        price = price * usdcToUsd;
+      // Convert to USD only if this is not a conversion rate feed
+      if (!isConversionFeed) {
+          if (isUsdtPair && usdtToUsd) {
+              price = price * usdtToUsd;
+          } else if (isUsdcPair && usdcToUsd) {
+              price = price * usdcToUsd;
+          }
       }
 
       prices.push({
