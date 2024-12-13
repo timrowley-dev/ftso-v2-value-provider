@@ -530,53 +530,96 @@ export class PredictorFeed implements BaseDataFeed {
 
   private weightedMedian(prices: PriceInfo[]): number {
     if (prices.length === 0) {
-      throw new Error("Price list cannot be empty.");
+        throw new Error("Price list cannot be empty.");
     }
 
-    prices.sort((a, b) => a.time - b.time);
-
-    // Current time for weight calculation
     const now = Date.now();
 
-    // Calculate exponential weights
+    // Configuration (could be moved to env variables)
+    const MAX_STALENESS = 5 * 60 * 1000; // 5 minutes
     const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
-    const weights = prices.map(data => {
-      const timeDifference = now - data.time;
-      return Math.exp(-lambda * timeDifference); // Exponential decay
+    
+    // Filter out extremely stale prices
+    let validPrices = prices.filter(p => (now - p.time) <= MAX_STALENESS);
+    
+    // Fallback to most recent prices if all are stale
+    if (validPrices.length === 0) {
+        const mostRecentTime = Math.max(...prices.map(p => p.time));
+        validPrices = prices.filter(p => p.time === mostRecentTime);
+        this.logger.warn(
+            `All prices were stale. Using most recent prices from ${new Date(mostRecentTime).toISOString()}. ` +
+            `${validPrices.length} prices selected`
+        );
+    }
+
+    // Calculate basic statistics for outlier detection
+    validPrices.sort((a, b) => a.price - b.price);
+    const q1 = validPrices[Math.floor(validPrices.length * 0.25)].price;
+    const q3 = validPrices[Math.floor(validPrices.length * 0.75)].price;
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+
+    // Remove outliers
+    const pricesWithoutOutliers = validPrices.filter(p => 
+        p.price >= lowerBound && p.price <= upperBound
+    );
+
+    // If too many prices were filtered, log warning and use original set
+    if (pricesWithoutOutliers.length < validPrices.length * 0.5) {
+        this.logger.warn(
+            `Too many prices filtered as outliers (${validPrices.length - pricesWithoutOutliers.length}). ` +
+            `Using original price set.`
+        );
+    } else {
+        validPrices = pricesWithoutOutliers;
+    }
+
+    // Calculate exponential weights
+    const weights = validPrices.map(data => {
+        const timeDifference = now - data.time;
+        return Math.exp(-lambda * timeDifference);
     });
 
-    // Normalize weights to sum to 1
+    // Normalize weights
     const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
     const normalizedWeights = weights.map(weight => weight / weightSum);
 
     // Combine prices and weights
-    const weightedPrices = prices.map((data, i) => ({
-      price: data.price,
-      weight: normalizedWeights[i],
-      exchange: data.exchange,
-      staleness: now - data.time,
+    const weightedPrices = validPrices.map((data, i) => ({
+        price: data.price,
+        weight: normalizedWeights[i],
+        exchange: data.exchange,
+        staleness: Math.round((now - data.time) / 1000) // in seconds
     }));
 
-    // Sort prices by value for median calculation
+    // Sort by price for median calculation
     weightedPrices.sort((a, b) => a.price - b.price);
 
-    this.logger.debug("Weighted prices:");
-    for (const { price, weight, exchange, staleness } of weightedPrices) {
-      this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
-    }
+    // Log detailed price information
+    this.logger.debug("Weighted prices distribution:");
+    weightedPrices.forEach(({ price, weight, exchange, staleness }) => {
+        this.logger.debug(
+            `${exchange}: $${price.toFixed(4)} | ` +
+            `Weight: ${(weight * 100).toFixed(2)}% | ` +
+            `Staleness: ${staleness}s`
+        );
+    });
 
-    // Find the weighted median
+    // Find weighted median
     let cumulativeWeight = 0;
-    for (let i = 0; i < weightedPrices.length; i++) {
-      cumulativeWeight += weightedPrices[i].weight;
-      if (cumulativeWeight >= 0.5) {
-        this.logger.debug(`Weighted median: ${weightedPrices[i].price}`);
-        return weightedPrices[i].price;
-      }
+    for (const wp of weightedPrices) {
+        cumulativeWeight += wp.weight;
+        if (cumulativeWeight >= 0.5) {
+            this.logger.debug(`Selected median price: $${wp.price.toFixed(4)} from ${wp.exchange}`);
+            return wp.price;
+        }
     }
 
-    this.logger.warn("Unable to calculate weighted median");
-    return undefined;
+    // Fallback to arithmetic mean if median calculation fails
+    const meanPrice = weightedPrices.reduce((sum, wp) => sum + wp.price * wp.weight, 0);
+    this.logger.warn("Falling back to weighted mean price");
+    return meanPrice;
   }
 }
 
