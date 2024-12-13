@@ -262,117 +262,187 @@ export class PredictorFeed implements BaseDataFeed {
 
   private getEnhancedPrice(prices: PriceInfo[]): number {
     if (prices.length === 0) {
-      throw new Error("Price list cannot be empty.");
+        throw new Error("Price list cannot be empty.");
     }
 
     this.logger.debug(`Starting enhanced price calculation with ${prices.length} prices`);
-    
-    // Step 1: Remove stale prices (older than 5 minutes)
     const now = Date.now();
-    const MAX_STALENESS = 5 * 60 * 1000;
+
+    // Step 1: Initial filtering of stale prices
+    const MAX_STALENESS = 5 * 60 * 1000; // 5 minutes
     let filteredPrices = prices.filter(p => (now - p.time) <= MAX_STALENESS);
 
-    this.logger.debug(
-      `Staleness check (${MAX_STALENESS}ms): ` +
-      `${prices.length - filteredPrices.length} stale prices removed. ` +
-      `${filteredPrices.length} prices remaining`
-    );
-
     if (filteredPrices.length === 0) {
-      const mostRecentTime = Math.max(...prices.map(p => p.time));
-      filteredPrices = prices.filter(p => p.time === mostRecentTime);
-      this.logger.warn(
-        `All prices were stale. Falling back to most recent prices (${mostRecentTime}). ` +
-        `${filteredPrices.length} prices selected`
-      );
+        const mostRecentTime = Math.max(...prices.map(p => p.time));
+        filteredPrices = prices.filter(p => p.time === mostRecentTime);
+        this.logger.warn(
+            `All prices were stale. Using most recent prices (${mostRecentTime}). ` +
+            `${filteredPrices.length} prices selected`
+        );
     }
 
-    // Step 2: Remove outliers using IQR method
-    const values = filteredPrices.map(p => p.price).sort((a, b) => a - b);
-    const q1 = this.getQuantile(values, 0.25);
-    const q3 = this.getQuantile(values, 0.75);
-    const iqr = q3 - q1;
-    const lowerBound = q1 - 1.5 * iqr;
-    const upperBound = q3 + 1.5 * iqr;
+    // Step 2: Calculate basic statistics
+    const values = filteredPrices.map(p => p.price);
+    const mean = this.calculateMean(values);
+    const std = this.calculateStandardDeviation(values, mean);
+    const cv = std / mean; // Coefficient of variation
 
-    this.logger.debug(
-      `IQR Analysis: Q1=${q1.toFixed(8)}, Q3=${q3.toFixed(8)}, IQR=${iqr.toFixed(8)}`
-    );
+    // Step 3: Dynamic outlier detection
+    const outlierThreshold = Math.min(3, Math.max(1.5, 2 * cv)); // Adaptive threshold
+    const q1 = this.getQuantile(values.sort((a, b) => a - b), 0.25);
+    const q3 = this.getQuantile(values.sort((a, b) => a - b), 0.75);
+    const iqr = q3 - q1;
+    const lowerBound = q1 - outlierThreshold * iqr;
+    const upperBound = q3 + outlierThreshold * iqr;
 
     const pricesBeforeOutlierRemoval = filteredPrices.length;
-    filteredPrices = filteredPrices.filter(p => 
-      p.price >= lowerBound && p.price <= upperBound
-    );
+    filteredPrices = filteredPrices.filter(p => p.price >= lowerBound && p.price <= upperBound);
 
-    this.logger.debug(
-      `Outlier removal: ${pricesBeforeOutlierRemoval - filteredPrices.length} prices removed. ` +
-      `Valid range: ${lowerBound.toFixed(8)} to ${upperBound.toFixed(8)}`
-    );
-
-    if (pricesBeforeOutlierRemoval - filteredPrices.length > 0) {
-      this.logger.warn(
-        `Removed outliers: ${prices
-          .filter(p => p.price < lowerBound || p.price > upperBound)
-          .map(p => `${p.exchange}: ${p.price.toFixed(8)} (${now - p.time}ms old)`)
-          .join(', ')}`
-      );
-    }
-
-    // Step 3: Calculate confidence-weighted scores
-    const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
+    // Step 4: Calculate sophisticated weights
     const priceScores = filteredPrices.map(data => {
-      const timeWeight = Math.exp(-lambda * (now - data.time));
-      const exchangeWeight = this.getExchangeReliability(data.exchange);
-      
-      const mean = this.calculateMean(filteredPrices.map(p => p.price));
-      const std = this.calculateStandardDeviation(filteredPrices.map(p => p.price), mean);
-      const deviationWeight = std === 0 ? 1 : Math.exp(-Math.pow(data.price - mean, 2) / (2 * Math.pow(std, 2)));
+        // Time decay weight
+        const timeWeight = Math.exp(-0.00005 * (now - data.time));
 
-      const totalWeight = timeWeight * exchangeWeight * deviationWeight;
+        // Exchange reliability weight
+        const exchangeWeight = this.getExchangeReliability(data.exchange);
 
-      return {
-        price: data.price,
-        weight: totalWeight,
-        exchange: data.exchange,
-        staleness: now - data.time,
-        timeWeight,
-        exchangeWeight,
-        deviationWeight
-      };
+        // Price stability weight (based on how close to mean)
+        const stabilityWeight = std === 0 ? 1 : 
+            Math.exp(-Math.pow(data.price - mean, 2) / (2 * Math.pow(std, 2)));
+
+        // Trend alignment weight
+        const trendWeight = this.calculateTrendWeight(data, filteredPrices, now);
+
+        // Cross-exchange correlation weight
+        const correlationWeight = this.calculateCorrelationWeight(data, filteredPrices);
+
+        // Combine weights with dynamic importance
+        const totalWeight = (
+            timeWeight * 0.25 +
+            exchangeWeight * 0.20 +
+            stabilityWeight * 0.25 +
+            trendWeight * 0.15 +
+            correlationWeight * 0.15
+        );
+
+        return {
+            price: data.price,
+            weight: totalWeight,
+            exchange: data.exchange,
+            components: {
+                timeWeight,
+                exchangeWeight,
+                stabilityWeight,
+                trendWeight,
+                correlationWeight
+            }
+        };
     });
 
+    // Log detailed analysis
+    this.logEnhancedPriceAnalysis(priceScores, {
+        mean,
+        std,
+        cv,
+        outlierThreshold,
+        removedCount: pricesBeforeOutlierRemoval - filteredPrices.length
+    });
+
+    // Step 5: Calculate final price using weighted median
     priceScores.sort((a, b) => a.price - b.price);
-
-    // Log detailed price information
-    this.logger.debug(`Price weight components (lambda=${lambda}):`);
-    priceScores.forEach(({ price, exchange, staleness, timeWeight, exchangeWeight, deviationWeight, weight }) => {
-      this.logger.debug(
-        `${exchange}: ${price.toFixed(8)} | ` +
-        `Age: ${staleness}ms | ` +
-        `Weights [Time: ${timeWeight.toFixed(4)}, ` +
-        `Exchange: ${exchangeWeight.toFixed(4)}, ` +
-        `Deviation: ${deviationWeight.toFixed(4)}] = ` +
-        `Final: ${weight.toFixed(4)}`
-      );
-    });
-
-    // Calculate weighted median
-    let cumulativeWeight = 0;
     const totalWeight = priceScores.reduce((sum, { weight }) => sum + weight, 0);
+    let cumulativeWeight = 0;
 
     for (const score of priceScores) {
-      cumulativeWeight += score.weight / totalWeight;
-      if (cumulativeWeight >= 0.5) {
-        this.logger.debug(
-          `Selected median price ${score.price.toFixed(8)} from ${score.exchange} ` +
-          `(cumulative weight: ${cumulativeWeight.toFixed(4)})`
-        );
-        return score.price;
-      }
+        cumulativeWeight += score.weight / totalWeight;
+        if (cumulativeWeight >= 0.5) {
+            return score.price;
+        }
     }
 
-    this.logger.warn("Unable to calculate enhanced weighted median");
-    return undefined;
+    return mean; // Fallback to simple mean if weighted median fails
+  }
+
+  private calculateTrendWeight(
+    current: PriceInfo,
+    allPrices: PriceInfo[],
+    now: number
+  ): number {
+    // Calculate short-term price trend
+    const recentPrices = allPrices
+        .filter(p => p.exchange === current.exchange)
+        .sort((a, b) => b.time - a.time)
+        .slice(0, 3);
+
+    if (recentPrices.length < 2) return 1;
+
+    const trend = recentPrices.reduce((acc, price, i, arr) => {
+        if (i === 0) return 0;
+        return acc + (price.price - arr[i-1].price);
+    }, 0) / (recentPrices.length - 1);
+
+    // Higher weight if price follows the general trend
+    return Math.exp(-Math.abs(trend) * 0.1);
+  }
+
+  private calculateCorrelationWeight(
+    current: PriceInfo,
+    allPrices: PriceInfo[]
+  ): number {
+    const otherExchangePrices = allPrices
+        .filter(p => p.exchange !== current.exchange)
+        .map(p => p.price);
+
+    if (otherExchangePrices.length === 0) return 1;
+
+    const avgOtherPrice = this.calculateMean(otherExchangePrices);
+    const priceDiff = Math.abs(current.price - avgOtherPrice) / avgOtherPrice;
+
+    // Exponential decay based on difference from other exchanges
+    return Math.exp(-priceDiff * 2);
+  }
+
+  private logEnhancedPriceAnalysis(
+    priceScores: Array<{
+        price: number;
+        weight: number;
+        exchange: string;
+        components: {
+            timeWeight: number;
+            exchangeWeight: number;
+            stabilityWeight: number;
+            trendWeight: number;
+            correlationWeight: number;
+        };
+    }>,
+    stats: {
+        mean: number;
+        std: number;
+        cv: number;
+        outlierThreshold: number;
+        removedCount: number;
+    }
+  ): void {
+    this.logger.debug(`Enhanced Price Analysis:
+    Statistics:
+    - Mean: ${stats.mean.toFixed(8)}
+    - Std Dev: ${stats.std.toFixed(8)}
+    - CV: ${stats.cv.toFixed(4)}
+    - Outlier Threshold: ${stats.outlierThreshold.toFixed(2)}
+    - Removed Outliers: ${stats.removedCount}
+
+    Price Weights:`);
+
+    priceScores.forEach(score => {
+        this.logger.debug(`
+        ${score.exchange}: ${score.price.toFixed(8)}
+        - Final Weight: ${score.weight.toFixed(4)}
+        - Time: ${score.components.timeWeight.toFixed(4)}
+        - Exchange: ${score.components.exchangeWeight.toFixed(4)}
+        - Stability: ${score.components.stabilityWeight.toFixed(4)}
+        - Trend: ${score.components.trendWeight.toFixed(4)}
+        - Correlation: ${score.components.correlationWeight.toFixed(4)}`);
+    });
   }
 
   // Helper methods needed for enhanced price calculation
