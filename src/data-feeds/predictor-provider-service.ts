@@ -100,6 +100,15 @@ export class PredictorFeed implements BaseDataFeed {
     this.initialized = true;
 
     this.logger.log(`Initialization done, watching trades...`);
+    
+    // Add connection status logging
+    setInterval(() => {
+        const activeExchanges = Array.from(this.exchangeByName.keys()).filter(
+            exchange => this.prices.get(exchange)?.size > 0
+        );
+        this.logger.log(`Active exchanges: ${activeExchanges.length}/${this.exchangeByName.size}`);
+    }, 60000); // Log every minute
+    
     void this.watchTrades(exchangeToSymbols);
   }
 
@@ -233,7 +242,6 @@ export class PredictorFeed implements BaseDataFeed {
   private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
     this.logger.log(`Watching trades for ${marketIds} on exchange ${exchangeName}`);
 
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
         const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
@@ -244,7 +252,8 @@ export class PredictorFeed implements BaseDataFeed {
         });
       } catch (e) {
         this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
-        return;
+        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
+        continue;
       }
     }
   }
@@ -695,6 +704,17 @@ export class PredictorFeed implements BaseDataFeed {
     const meanPrice = weightedPrices.reduce((sum, wp) => sum + wp.price * wp.weight, 0);
     this.logger.warn("Falling back to weighted mean price");
     return meanPrice;
+  }
+
+  private async reconnectExchange(exchange: Exchange, exchangeName: string) {
+    try {
+        await exchange.close();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        await exchange.loadMarkets();
+        this.logger.log(`Successfully reconnected to ${exchangeName}`);
+    } catch (e) {
+        this.logger.error(`Failed to reconnect to ${exchangeName}: ${e}`);
+    }
   }
 }
 
