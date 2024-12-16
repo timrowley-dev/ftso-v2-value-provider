@@ -63,6 +63,10 @@ export class PredictorFeed implements BaseDataFeed {
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
+  private readonly reconnectAttempts = new Map<string, number>();
+  private readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private readonly RECONNECT_RESET_TIME = 30 * 60 * 1000; // 30 minutes
+
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -101,13 +105,45 @@ export class PredictorFeed implements BaseDataFeed {
 
     this.logger.log(`Initialization done, watching trades...`);
     
-    // Add connection status logging
+    // Modify the connection status logging
     setInterval(() => {
-        const activeExchanges = Array.from(this.exchangeByName.keys()).filter(
-            exchange => this.prices.get(exchange)?.size > 0
+        // Count exchanges that have provided prices for any symbol
+        const activeExchanges = new Set<string>();
+        
+        // Iterate through all prices
+        this.prices.forEach((exchangePrices, symbol) => {
+            exchangePrices.forEach((priceInfo, exchange) => {
+                // Only count exchanges with recent prices (last 5 minutes)
+                if (Date.now() - priceInfo.time < 5 * 60 * 1000) {
+                    activeExchanges.add(exchange);
+                }
+            });
+        });
+
+        const totalExchanges = this.exchangeByName.size;
+        this.logger.log(
+            `Active exchanges: ${activeExchanges.size}/${totalExchanges}\n` +
+            `Active exchanges: ${Array.from(activeExchanges).join(', ')}`
         );
-        this.logger.log(`Active exchanges: ${activeExchanges.length}/${this.exchangeByName.size}`);
-    }, 60000); // Log every minute
+
+        // Log inactive exchanges
+        const inactiveExchanges = Array.from(this.exchangeByName.keys())
+            .filter(exchange => !activeExchanges.has(exchange));
+        if (inactiveExchanges.length > 0) {
+            this.logger.warn(
+                `Inactive exchanges: ${inactiveExchanges.join(', ')}`
+            );
+        }
+
+        // Attempt to reconnect inactive exchanges
+        inactiveExchanges.forEach(exchangeName => {
+            const exchange = this.exchangeByName.get(exchangeName);
+            if (exchange) {
+                this.logger.log(`Attempting to reconnect to ${exchangeName}`);
+                void this.reconnectExchange(exchange, exchangeName);
+            }
+        });
+    }, 60000); // Every minute
     
     void this.watchTrades(exchangeToSymbols);
   }
@@ -706,13 +742,39 @@ export class PredictorFeed implements BaseDataFeed {
     return meanPrice;
   }
 
+  // Add a method to handle reconnection
   private async reconnectExchange(exchange: Exchange, exchangeName: string) {
+    const attempts = this.reconnectAttempts.get(exchangeName) || 0;
+    if (attempts >= this.MAX_RECONNECT_ATTEMPTS) {
+        const lastAttempt = this.reconnectAttempts.get(`${exchangeName}_last_attempt`);
+        if (lastAttempt && Date.now() - lastAttempt < this.RECONNECT_RESET_TIME) {
+            this.logger.warn(`Too many reconnection attempts for ${exchangeName}, waiting before trying again`);
+            return;
+        }
+        this.reconnectAttempts.set(exchangeName, 0);
+    }
+
     try {
         await exchange.close();
         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
         await exchange.loadMarkets();
+        
+        // Restart watching trades for this exchange
+        const symbols = Array.from(this.exchangeByName.keys())
+            .filter(symbol => this.prices.has(symbol))
+            .map(symbol => exchange.markets[symbol])
+            .filter(market => market !== undefined)
+            .map(market => market.id);
+
+        if (symbols.length > 0) {
+            void this.watch(exchange, symbols, exchangeName);
+        }
+        
         this.logger.log(`Successfully reconnected to ${exchangeName}`);
+        this.reconnectAttempts.delete(exchangeName);
     } catch (e) {
+        this.reconnectAttempts.set(exchangeName, attempts + 1);
+        this.reconnectAttempts.set(`${exchangeName}_last_attempt`, Date.now());
         this.logger.error(`Failed to reconnect to ${exchangeName}: ${e}`);
     }
   }
