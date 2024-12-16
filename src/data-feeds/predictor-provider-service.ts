@@ -6,6 +6,7 @@ import { BaseDataFeed } from "./base-feed";
 import { retry } from "src/utils/retry";
 import axios, { AxiosResponse } from "axios";
 import * as dotenv from "dotenv";
+import { Pool } from "pg";
 dotenv.config();
 
 type networks = "local-test" | "from-env" | "coston2" | "coston" | "songbird";
@@ -22,6 +23,11 @@ enum PricingMethod {
   WEIGHTED = 'weighted',
   ENHANCED = 'enhanced',
   // Add more methods here as needed
+}
+
+enum PriceSource {
+  CCXT = 'ccxt',
+  DATABASE = 'database'
 }
 
 const CONFIG_PREFIX = "src/config/";
@@ -66,6 +72,27 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly reconnectAttempts = new Map<string, number>();
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_RESET_TIME = 30 * 60 * 1000; // 30 minutes
+
+  private readonly pool: Pool;
+  private readonly priceSource: PriceSource;
+  
+  constructor() {
+    // Get price source from environment variable, default to CCXT
+    this.priceSource = (process.env.PRICE_SOURCE || PriceSource.CCXT) as PriceSource;
+    
+    // Only initialize pool if using DATABASE
+    if (this.priceSource === PriceSource.DATABASE) {
+      this.pool = new Pool({
+        host: '10.152.0.20',
+        port: 5432,
+        database: 'prices',
+        user: 'postgres',
+        password: 'password'
+      });
+    }
+    
+    this.logger.log(`Using price source: ${this.priceSource}`);
+  }
 
   async start() {
     this.config = this.loadConfig();
@@ -245,25 +272,68 @@ export class PredictorFeed implements BaseDataFeed {
   private async watchSingleMarket(exchange: Exchange, marketId: string, exchangeName: string) {
     while (true) {
       try {
-        const trades = await retry(
-          async () => exchange.watchTradesForSymbols([marketId], null, 100),
-          RETRY_BACKOFF_MS
-        );
-        trades.forEach(trade => {
-          const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-          prices.set(exchangeName, { 
-            price: trade.price, 
-            time: trade.timestamp, 
-            exchange: exchangeName 
+        if (this.priceSource === PriceSource.DATABASE) {
+          const dbPrices = await this.fetchPricesFromDb(marketId);
+          
+          dbPrices.forEach(priceEvent => {
+            const prices = this.prices.get(priceEvent.symbol) || new Map<string, PriceInfo>();
+            prices.set(priceEvent.exchange, { 
+              price: priceEvent.price, 
+              time: new Date(priceEvent.timestamp).getTime(), 
+              exchange: priceEvent.exchange 
+            });
+            this.prices.set(priceEvent.symbol, prices);
           });
-          this.prices.set(trade.symbol, prices);
-        });
+
+          // Poll every 5 seconds for DB
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } else {
+          // Original CCXT logic
+          const trades = await retry(
+            async () => exchange.watchTradesForSymbols([marketId], null, 100),
+            RETRY_BACKOFF_MS
+          );
+          trades.forEach(trade => {
+            const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
+            prices.set(exchangeName, { 
+              price: trade.price, 
+              time: trade.timestamp, 
+              exchange: exchangeName 
+            });
+            this.prices.set(trade.symbol, prices);
+          });
+        }
       } catch (e) {
         this.logger.error(
-          `Failed to watch trades for ${marketId} on ${exchangeName}: ${e}`
+          `Failed to fetch prices for ${marketId} using ${this.priceSource}: ${e}`
         );
         await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
       }
+    }
+  }
+
+  private async fetchPricesFromDb(symbol: string, timeWindowSeconds: number = 300) {
+    try {
+      const query = `
+        SELECT 
+          price,
+          timestamp,
+          exchange,
+          symbol,
+          base,
+          quote
+        FROM price_events
+        WHERE 
+          symbol = $1
+          AND timestamp > NOW() - interval '${timeWindowSeconds} seconds'
+        ORDER BY timestamp DESC
+      `;
+
+      const result = await this.pool.query(query, [symbol]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error(`Error fetching prices from DB: ${error.message}`);
+      throw error;
     }
   }
 
