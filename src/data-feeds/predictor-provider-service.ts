@@ -370,6 +370,14 @@ export class PredictorFeed implements BaseDataFeed {
       case PricingMethod.ENHANCED:
         return this.getEnhancedPrice(prices);
       case PricingMethod.WEIGHTED:
+        // Log which exchanges are actually providing prices
+        const activeExchanges = new Set(prices.map(p => p.exchange));
+        this.logger.debug(
+            `Active price sources for ${feedId.name}:\n` +
+            `Total configured exchanges: ${config.sources.length}\n` +
+            `Actually providing prices: ${activeExchanges.size}\n` +
+            `Active exchanges: ${Array.from(activeExchanges).join(', ')}`
+        );
         return this.weightedMedian(prices);
       default:
         this.logger.warn(`Unknown pricing method ${pricingMethod}, falling back to weighted median`);
