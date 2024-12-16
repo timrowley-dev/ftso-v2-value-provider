@@ -780,10 +780,6 @@ export class PredictorFeed implements BaseDataFeed {
       exchange.markets = {};
       await exchange.loadMarkets();
       
-      if (typeof exchange.reset === 'function') {
-        await exchange.reset();
-      }
-      
       this.logger.log(`Successfully reconnected to ${exchangeName}`);
       
       const symbols = Array.from(this.exchangeByName.keys())
@@ -793,7 +789,6 @@ export class PredictorFeed implements BaseDataFeed {
         .map(market => market.id);
 
       if (symbols.length > 0) {
-        // Watch each market separately
         for (const marketId of symbols) {
           void this.watchSingleMarket(exchange, marketId, exchangeName);
         }
