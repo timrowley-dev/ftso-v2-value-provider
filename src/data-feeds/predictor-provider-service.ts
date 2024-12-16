@@ -765,32 +765,49 @@ export class PredictorFeed implements BaseDataFeed {
     if (this.lastReportedRound !== votingRoundId) {
         this.logger.log(`Round ${votingRoundId}: Using ${pricingMethod.toUpperCase()} pricing method`);
         
-        // Count all sources across all feeds
-        const exchangeSources = new Map<string, { USDT: number; USDC: number }>();
+        // Count configured and active sources across all feeds
+        const exchangeSources = new Map<string, {
+            USDT: { configured: number; active: number };
+            USDC: { configured: number; active: number };
+        }>();
         
+        // Initialize counts
         this.config.forEach(feedConfig => {
             feedConfig.sources.forEach(source => {
                 const exchange = source.exchange;
                 if (!exchangeSources.has(exchange)) {
-                    exchangeSources.set(exchange, { USDT: 0, USDC: 0 });
+                    exchangeSources.set(exchange, {
+                        USDT: { configured: 0, active: 0 },
+                        USDC: { configured: 0, active: 0 }
+                    });
                 }
                 
                 if (source.symbol.endsWith('USDT')) {
-                    exchangeSources.get(exchange).USDT++;
+                    exchangeSources.get(exchange).USDT.configured++;
+                    // Check if we have a recent price
+                    const price = this.prices.get(source.symbol)?.get(exchange);
+                    if (price && (Date.now() - price.time) < 5 * 60 * 1000) {
+                        exchangeSources.get(exchange).USDT.active++;
+                    }
                 } else if (source.symbol.endsWith('USDC')) {
-                    exchangeSources.get(exchange).USDC++;
+                    exchangeSources.get(exchange).USDC.configured++;
+                    // Check if we have a recent price
+                    const price = this.prices.get(source.symbol)?.get(exchange);
+                    if (price && (Date.now() - price.time) < 5 * 60 * 1000) {
+                        exchangeSources.get(exchange).USDC.active++;
+                    }
                 }
             });
         });
 
-        // Log exchange sources
+        // Log exchange sources with active/configured counts
         this.logger.log('Exchange sources for this round:');
         exchangeSources.forEach((counts, exchange) => {
-            if (counts.USDT > 0 || counts.USDC > 0) {
+            if (counts.USDT.configured > 0 || counts.USDC.configured > 0) {
                 this.logger.log(
                     `  ${exchange}: ` +
-                    `USDT pairs: ${counts.USDT}, ` +
-                    `USDC pairs: ${counts.USDC}`
+                    `USDT pairs: ${counts.USDT.active}/${counts.USDT.configured} active, ` +
+                    `USDC pairs: ${counts.USDC.active}/${counts.USDC.configured} active`
                 );
             }
         });
