@@ -765,10 +765,11 @@ export class PredictorFeed implements BaseDataFeed {
     if (this.lastReportedRound !== votingRoundId) {
         this.logger.log(`Round ${votingRoundId}: Using ${pricingMethod.toUpperCase()} pricing method`);
         
+        const now = Date.now();
         // Count configured and active sources across all feeds
         const exchangeSources = new Map<string, {
-            USDT: { configured: number; active: number };
-            USDC: { configured: number; active: number };
+            USDT: { configured: number; active: number; details: Array<{symbol: string, lastUpdate: number, price: number}> };
+            USDC: { configured: number; active: number; details: Array<{symbol: string, lastUpdate: number, price: number}> };
         }>();
         
         // Initialize counts
@@ -777,30 +778,39 @@ export class PredictorFeed implements BaseDataFeed {
                 const exchange = source.exchange;
                 if (!exchangeSources.has(exchange)) {
                     exchangeSources.set(exchange, {
-                        USDT: { configured: 0, active: 0 },
-                        USDC: { configured: 0, active: 0 }
+                        USDT: { configured: 0, active: 0, details: [] },
+                        USDC: { configured: 0, active: 0, details: [] }
                     });
                 }
                 
+                const price = this.prices.get(source.symbol)?.get(exchange);
+                const timeSinceUpdate = price ? (now - price.time) / 1000 : null; // in seconds
+
                 if (source.symbol.endsWith('USDT')) {
                     exchangeSources.get(exchange).USDT.configured++;
-                    // Check if we have a recent price
-                    const price = this.prices.get(source.symbol)?.get(exchange);
-                    if (price && (Date.now() - price.time) < 5 * 60 * 1000) {
+                    exchangeSources.get(exchange).USDT.details.push({
+                        symbol: source.symbol,
+                        lastUpdate: timeSinceUpdate,
+                        price: price?.price
+                    });
+                    if (price && (now - price.time) < 5 * 60 * 1000) {
                         exchangeSources.get(exchange).USDT.active++;
                     }
                 } else if (source.symbol.endsWith('USDC')) {
                     exchangeSources.get(exchange).USDC.configured++;
-                    // Check if we have a recent price
-                    const price = this.prices.get(source.symbol)?.get(exchange);
-                    if (price && (Date.now() - price.time) < 5 * 60 * 1000) {
+                    exchangeSources.get(exchange).USDC.details.push({
+                        symbol: source.symbol,
+                        lastUpdate: timeSinceUpdate,
+                        price: price?.price
+                    });
+                    if (price && (now - price.time) < 5 * 60 * 1000) {
                         exchangeSources.get(exchange).USDC.active++;
                     }
                 }
             });
         });
 
-        // Log exchange sources with active/configured counts
+        // Log exchange sources with active/configured counts and details
         this.logger.log('Exchange sources for this round:');
         exchangeSources.forEach((counts, exchange) => {
             if (counts.USDT.configured > 0 || counts.USDC.configured > 0) {
@@ -809,6 +819,25 @@ export class PredictorFeed implements BaseDataFeed {
                     `USDT pairs: ${counts.USDT.active}/${counts.USDT.configured} active, ` +
                     `USDC pairs: ${counts.USDC.active}/${counts.USDC.configured} active`
                 );
+
+                // Log details for inactive pairs
+                if (counts.USDT.details.length > 0) {
+                    this.logger.debug(`  ${exchange} USDT pairs details:`);
+                    counts.USDT.details.forEach(detail => {
+                        const status = detail.lastUpdate === null ? 'No data' :
+                            detail.lastUpdate > 300 ? `Stale (${Math.floor(detail.lastUpdate)}s old)` : 'Active';
+                        this.logger.debug(`    ${detail.symbol}: ${status}, Last price: ${detail.price || 'N/A'}`);
+                    });
+                }
+
+                if (counts.USDC.details.length > 0) {
+                    this.logger.debug(`  ${exchange} USDC pairs details:`);
+                    counts.USDC.details.forEach(detail => {
+                        const status = detail.lastUpdate === null ? 'No data' :
+                            detail.lastUpdate > 300 ? `Stale (${Math.floor(detail.lastUpdate)}s old)` : 'Active';
+                        this.logger.debug(`    ${detail.symbol}: ${status}, Last price: ${detail.price || 'N/A'}`);
+                    });
+                }
             }
         });
         
