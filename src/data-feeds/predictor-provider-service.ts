@@ -158,44 +158,7 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
-    // Report pricing method and sources once per round
-    if (this.lastReportedRound !== votingRoundId) {
-        this.logger.log(`Round ${votingRoundId}: Using ${pricingMethod.toUpperCase()} pricing method`);
-        
-        // Get the feed configuration
-        const feedConfig = this.config.find(config => feedsEqual(config.feed, feed));
-        if (feedConfig) {
-            // Group sources by exchange
-            const exchangeSources = new Map<string, { USDT: number; USDC: number }>();
-            
-            feedConfig.sources.forEach(source => {
-                const exchange = source.exchange;
-                if (!exchangeSources.has(exchange)) {
-                    exchangeSources.set(exchange, { USDT: 0, USDC: 0 });
-                }
-                
-                if (source.symbol.endsWith('USDT')) {
-                    exchangeSources.get(exchange).USDT++;
-                } else if (source.symbol.endsWith('USDC')) {
-                    exchangeSources.get(exchange).USDC++;
-                }
-            });
-
-            // Log exchange sources
-            this.logger.log('Exchange sources for this round:');
-            exchangeSources.forEach((counts, exchange) => {
-                if (counts.USDT > 0 || counts.USDC > 0) {
-                    this.logger.log(
-                        `  ${exchange}: ` +
-                        `USDT pairs: ${counts.USDT}, ` +
-                        `USDC pairs: ${counts.USDC}`
-                    );
-                }
-            });
-        }
-        
-        this.lastReportedRound = votingRoundId;
-    }
+    this.logExchangeSourcesOnce(votingRoundId);
 
     let price: number;
     let priceSource: 'CCXT' | 'Predictor';
@@ -795,6 +758,44 @@ export class PredictorFeed implements BaseDataFeed {
       }
     } catch (e) {
       this.logger.error(`Failed to reconnect to ${exchangeName}: ${e}`);
+    }
+  }
+
+  private logExchangeSourcesOnce(votingRoundId: number) {
+    if (this.lastReportedRound !== votingRoundId) {
+        this.logger.log(`Round ${votingRoundId}: Using ${pricingMethod.toUpperCase()} pricing method`);
+        
+        // Count all sources across all feeds
+        const exchangeSources = new Map<string, { USDT: number; USDC: number }>();
+        
+        this.config.forEach(feedConfig => {
+            feedConfig.sources.forEach(source => {
+                const exchange = source.exchange;
+                if (!exchangeSources.has(exchange)) {
+                    exchangeSources.set(exchange, { USDT: 0, USDC: 0 });
+                }
+                
+                if (source.symbol.endsWith('USDT')) {
+                    exchangeSources.get(exchange).USDT++;
+                } else if (source.symbol.endsWith('USDC')) {
+                    exchangeSources.get(exchange).USDC++;
+                }
+            });
+        });
+
+        // Log exchange sources
+        this.logger.log('Exchange sources for this round:');
+        exchangeSources.forEach((counts, exchange) => {
+            if (counts.USDT > 0 || counts.USDC > 0) {
+                this.logger.log(
+                    `  ${exchange}: ` +
+                    `USDT pairs: ${counts.USDT}, ` +
+                    `USDC pairs: ${counts.USDC}`
+                );
+            }
+        });
+        
+        this.lastReportedRound = votingRoundId;
     }
   }
 }
