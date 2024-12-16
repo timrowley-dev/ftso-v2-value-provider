@@ -39,7 +39,7 @@ interface PriceInfo {
   price: number;
   time: number;
   exchange: string;
-  type?: 'USDT' | 'USDC';
+  type?: 'USDT' | 'USDC' | 'USD';
 }
 
 interface PredictionResponse {
@@ -271,25 +271,35 @@ export class PredictorFeed implements BaseDataFeed {
         }
         marketIds.push(market.id);
       }
-      void this.watch(exchange, marketIds, exchangeName);
+
+      // Watch each market separately
+      for (const marketId of marketIds) {
+        void this.watchSingleMarket(exchange, marketId, exchangeName);
+      }
     }
   }
 
-  private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
-    this.logger.log(`Watching trades for ${marketIds} on exchange ${exchangeName}`);
-
+  private async watchSingleMarket(exchange: Exchange, marketId: string, exchangeName: string) {
     while (true) {
       try {
-        const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
+        const trades = await retry(
+          async () => exchange.watchTradesForSymbols([marketId], null, 100),
+          RETRY_BACKOFF_MS
+        );
         trades.forEach(trade => {
           const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-          prices.set(exchangeName, { price: trade.price, time: trade.timestamp, exchange: exchangeName });
+          prices.set(exchangeName, { 
+            price: trade.price, 
+            time: trade.timestamp, 
+            exchange: exchangeName 
+          });
           this.prices.set(trade.symbol, prices);
         });
       } catch (e) {
-        this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
+        this.logger.error(
+          `Failed to watch trades for ${marketId} on ${exchangeName}: ${e}`
+        );
         await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
-        continue;
       }
     }
   }
@@ -306,78 +316,89 @@ export class PredictorFeed implements BaseDataFeed {
     const prices: PriceInfo[] = [];
     const now = Date.now();
 
-    // Only get conversion rates if we're not already processing a conversion rate
+    const sourceStats = {
+      configured: config.sources.length,
+      noInfo: 0,
+      stalePrice: 0,
+      validPrices: 0
+    };
+
     if (!isConversionRate) {
-        // Get both USDT and USDC conversion rates upfront if needed
-        const hasUsdtPairs = config.sources.some(source => source.symbol.endsWith("USDT"));
-        const hasUsdcPairs = config.sources.some(source => source.symbol.endsWith("USDC"));
-        
-        if (hasUsdtPairs) {
-            usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
-        }
-        if (hasUsdcPairs) {
-            usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
-        }
+      const hasUsdtPairs = config.sources.some(source => source.symbol.endsWith("USDT"));
+      const hasUsdcPairs = config.sources.some(source => source.symbol.endsWith("USDC"));
+      
+      if (hasUsdtPairs) {
+        usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
+      }
+      if (hasUsdcPairs) {
+        usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
+      }
     }
 
-    // Add prices from USDT and USDC sources
     for (const source of config.sources) {
       const info = this.prices.get(source.symbol)?.get(source.exchange);
-      if (info === undefined) continue;
+      if (info === undefined) {
+        sourceStats.noInfo++;
+        this.logger.debug(`No price info for ${source.symbol} from ${source.exchange}`);
+        continue;
+      }
+
+      if (now - info.time > 5 * 60 * 1000) {
+        sourceStats.stalePrice++;
+        this.logger.debug(`Stale price for ${source.symbol} from ${source.exchange}: ${(now - info.time)/1000}s old`);
+        continue;
+      }
 
       const isUsdtPair = source.symbol.endsWith("USDT");
       const isUsdcPair = source.symbol.endsWith("USDC");
-
-      // Only process USDT and USDC pairs
-      if (!isUsdtPair && !isUsdcPair) continue;
+      const isUsdPair = source.symbol.endsWith("USD");
 
       let price = info.price;
 
-      // Convert to USD only if this is not a conversion rate feed
       if (!isConversionRate) {
-          if (isUsdtPair && usdtToUsd) {
-              price = price * usdtToUsd;
-          } else if (isUsdcPair && usdcToUsd) {
-              price = price * usdcToUsd;
-          }
+        if (isUsdtPair && usdtToUsd) {
+          price = price * usdtToUsd;
+        } else if (isUsdcPair && usdcToUsd) {
+          price = price * usdcToUsd;
+        } else if (isUsdPair) {
+          price = price; // Direct USD price
+        }
       }
 
       prices.push({
         price: price,
         time: info.time,
         exchange: info.exchange,
-        type: isUsdtPair ? 'USDT' : 'USDC'
+        type: isUsdtPair ? 'USDT' : (isUsdcPair ? 'USDC' : 'USD')
       });
+      sourceStats.validPrices++;
     }
 
+    this.logger.debug(`Source statistics for ${feedId.name}:
+      Configured: ${sourceStats.configured}
+      No Info: ${sourceStats.noInfo}
+      Stale: ${sourceStats.stalePrice}
+      Valid: ${sourceStats.validPrices}
+    `);
+
     if (prices.length === 0) {
-      this.logger.warn(`No USDT/USDC prices found for ${JSON.stringify(feedId)}`);
+      this.logger.warn(`No valid prices found for ${JSON.stringify(feedId)}`);
       return undefined;
     }
 
-    // Log the distribution of price sources
     const usdtCount = prices.filter(p => p.type === 'USDT').length;
     const usdcCount = prices.filter(p => p.type === 'USDC').length;
+    const usdCount = prices.filter(p => p.type === 'USD').length;
     
     this.logger.debug(
       `Price sources distribution for ${feedId.name}: ` +
-      `USDT: ${usdtCount}, USDC: ${usdcCount}`
+      `USDT: ${usdtCount}, USDC: ${usdcCount}, USD: ${usdCount}`
     );
 
-    this.logger.debug(`Using ${pricingMethod} pricing method for ${feedId.name}`);
-    
     switch (pricingMethod) {
       case PricingMethod.ENHANCED:
         return this.getEnhancedPrice(prices);
       case PricingMethod.WEIGHTED:
-        // Log which exchanges are actually providing prices
-        const activeExchanges = new Set(prices.map(p => p.exchange));
-        this.logger.debug(
-            `Active price sources for ${feedId.name}:\n` +
-            `Total configured exchanges: ${config.sources.length}\n` +
-            `Actually providing prices: ${activeExchanges.size}\n` +
-            `Active exchanges: ${Array.from(activeExchanges).join(', ')}`
-        );
         return this.weightedMedian(prices);
       default:
         this.logger.warn(`Unknown pricing method ${pricingMethod}, falling back to weighted median`);
@@ -752,38 +773,33 @@ export class PredictorFeed implements BaseDataFeed {
 
   // Add a method to handle reconnection
   private async reconnectExchange(exchange: Exchange, exchangeName: string) {
-    const attempts = this.reconnectAttempts.get(exchangeName) || 0;
-    if (attempts >= this.MAX_RECONNECT_ATTEMPTS) {
-        const lastAttempt = this.reconnectAttempts.get(`${exchangeName}_last_attempt`);
-        if (lastAttempt && Date.now() - lastAttempt < this.RECONNECT_RESET_TIME) {
-            this.logger.warn(`Too many reconnection attempts for ${exchangeName}, waiting before trying again`);
-            return;
-        }
-        this.reconnectAttempts.set(exchangeName, 0);
-    }
-
     try {
-        await exchange.close();
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-        await exchange.loadMarkets();
-        
-        // Restart watching trades for this exchange
-        const symbols = Array.from(this.exchangeByName.keys())
-            .filter(symbol => this.prices.has(symbol))
-            .map(symbol => exchange.markets[symbol])
-            .filter(market => market !== undefined)
-            .map(market => market.id);
+      await exchange.close();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      exchange.markets = {};
+      await exchange.loadMarkets();
+      
+      if (typeof exchange.reset === 'function') {
+        await exchange.reset();
+      }
+      
+      this.logger.log(`Successfully reconnected to ${exchangeName}`);
+      
+      const symbols = Array.from(this.exchangeByName.keys())
+        .filter(symbol => this.prices.has(symbol))
+        .map(symbol => exchange.markets[symbol])
+        .filter(market => market !== undefined)
+        .map(market => market.id);
 
-        if (symbols.length > 0) {
-            void this.watch(exchange, symbols, exchangeName);
+      if (symbols.length > 0) {
+        // Watch each market separately
+        for (const marketId of symbols) {
+          void this.watchSingleMarket(exchange, marketId, exchangeName);
         }
-        
-        this.logger.log(`Successfully reconnected to ${exchangeName}`);
-        this.reconnectAttempts.delete(exchangeName);
+      }
     } catch (e) {
-        this.reconnectAttempts.set(exchangeName, attempts + 1);
-        this.reconnectAttempts.set(`${exchangeName}_last_attempt`, Date.now());
-        this.logger.error(`Failed to reconnect to ${exchangeName}: ${e}`);
+      this.logger.error(`Failed to reconnect to ${exchangeName}: ${e}`);
     }
   }
 }
