@@ -77,8 +77,10 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly priceSource: PriceSource;
   
   constructor() {
+    // Get price source from environment variable, default to CCXT
     this.priceSource = (process.env.PRICE_SOURCE || PriceSource.CCXT) as PriceSource;
     
+    // Only initialize pool if using DATABASE
     if (this.priceSource === PriceSource.DATABASE) {
       this.pool = new Pool({
         host: '10.152.0.20',
@@ -94,113 +96,83 @@ export class PredictorFeed implements BaseDataFeed {
 
   async start() {
     this.config = this.loadConfig();
+    const exchangeToSymbols = new Map<string, Set<string>>();
 
-    if (this.priceSource === PriceSource.DATABASE) {
-      // For database mode, just mark as initialized and start watching prices
-      this.initialized = true;
-      this.logger.log(`Initialization done, watching database prices...`);
-      void this.watchDatabasePrices();
-    } else {
-      // Original CCXT initialization logic
-      const exchangeToSymbols = new Map<string, Set<string>>();
-      const loadExchanges = [];
-      for (const feed of this.config) {
-        for (const source of feed.sources) {
-          const symbols = exchangeToSymbols.get(source.exchange) || new Set();
-          symbols.add(source.symbol);
-          exchangeToSymbols.set(source.exchange, symbols);
-        }
-      }
-
-      this.logger.log(`Connecting to exchanges: ${JSON.stringify(Array.from(exchangeToSymbols.keys()))}`);
-      for (const exchangeName of exchangeToSymbols.keys()) {
-        try {
-          const exchange: Exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
-          this.exchangeByName.set(exchangeName, exchange);
-          loadExchanges.push([exchangeName, retry(async () => exchange.loadMarkets(), 2, RETRY_BACKOFF_MS, this.logger)]);
-        } catch (e) {
-          this.logger.warn(`Failed to initialize exchange ${exchangeName}, ignoring: ${e}`);
-          exchangeToSymbols.delete(exchangeName);
-        }
-      }
-
-      for (const [exchangeName, loadExchange] of loadExchanges) {
-        try {
-          await loadExchange;
-          this.logger.log(`Exchange ${exchangeName} initialized`);
-        } catch (e) {
-          this.logger.warn(`Failed to load markets for ${exchangeName}, ignoring: ${e}`);
-          exchangeToSymbols.delete(exchangeName);
-        }
+    for (const feed of this.config) {
+      for (const source of feed.sources) {
+        const symbols = exchangeToSymbols.get(source.exchange) || new Set();
+        symbols.add(source.symbol);
+        exchangeToSymbols.set(source.exchange, symbols);
       }
     }
 
-    // Modified connection status logging
-    setInterval(() => {
-      // Count exchanges that have provided prices for any symbol
-      const activeExchanges = new Set<string>();
-      
-      this.prices.forEach((exchangePrices, symbol) => {
-        exchangePrices.forEach((priceInfo, exchange) => {
-          if (Date.now() - priceInfo.time < 5 * 60 * 1000) {
-            activeExchanges.add(exchange);
-          }
-        });
-      });
-
-      const totalExchanges = this.priceSource === PriceSource.DATABASE 
-        ? activeExchanges.size  // For database, total is what we've seen
-        : this.exchangeByName.size;  // For CCXT, use connected exchanges
-
-      this.logger.log(
-        `Active exchanges: ${activeExchanges.size}/${totalExchanges}\n` +
-        `Active exchanges: ${Array.from(activeExchanges).join(', ')}`
-      );
-
-      // Only log inactive exchanges for CCXT mode
-      if (this.priceSource === PriceSource.CCXT) {
-        const inactiveExchanges = Array.from(this.exchangeByName.keys())
-          .filter(exchange => !activeExchanges.has(exchange));
-        if (inactiveExchanges.length > 0) {
-          this.logger.warn(`Inactive exchanges: ${inactiveExchanges.join(', ')}`);
-        }
-      }
-    }, 60000);
-  }
-
-  private async watchDatabasePrices() {
-    while (true) {
+    this.logger.log(`Connecting to exchanges: ${JSON.stringify(Array.from(exchangeToSymbols.keys()))}`);
+    const loadExchanges = [];
+    for (const exchangeName of exchangeToSymbols.keys()) {
       try {
-        // Get all configured symbols
-        const symbols = new Set<string>();
-        this.config.forEach(feed => {
-          feed.sources.forEach(source => {
-            symbols.add(source.symbol);
-          });
-        });
-
-        // Fetch prices for all symbols
-        for (const symbol of symbols) {
-          const dbPrices = await this.fetchPricesFromDb(symbol);
-          
-          dbPrices.forEach(priceEvent => {
-            const prices = this.prices.get(priceEvent.symbol) || new Map<string, PriceInfo>();
-            prices.set(priceEvent.exchange, { 
-              price: priceEvent.price, 
-              time: new Date(priceEvent.timestamp).getTime(), 
-              exchange: priceEvent.exchange 
-            });
-            this.prices.set(priceEvent.symbol, prices);
-          });
-        }
-
-        // Poll every 5 seconds
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        const exchange: Exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
+        this.exchangeByName.set(exchangeName, exchange);
+        loadExchanges.push([exchangeName, retry(async () => exchange.loadMarkets(), 2, RETRY_BACKOFF_MS, this.logger)]);
       } catch (e) {
-        this.logger.error(`Failed to fetch prices from database: ${e}`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
+        this.logger.warn(`Failed to initialize exchange ${exchangeName}, ignoring: ${e}`);
+        exchangeToSymbols.delete(exchangeName);
       }
     }
+
+    for (const [exchangeName, loadExchange] of loadExchanges) {
+      try {
+        await loadExchange;
+        this.logger.log(`Exchange ${exchangeName} initialized`);
+      } catch (e) {
+        this.logger.warn(`Failed to load markets for ${exchangeName}, ignoring: ${e}`);
+        exchangeToSymbols.delete(exchangeName);
+      }
+    }
+    this.initialized = true;
+
+    this.logger.log(`Initialization done, watching trades...`);
+    
+    // Modify the connection status logging
+    setInterval(() => {
+        // Count exchanges that have provided prices for any symbol
+        const activeExchanges = new Set<string>();
+        
+        // Iterate through all prices
+        this.prices.forEach((exchangePrices, symbol) => {
+            exchangePrices.forEach((priceInfo, exchange) => {
+                // Only count exchanges with recent prices (last 5 minutes)
+                if (Date.now() - priceInfo.time < 5 * 60 * 1000) {
+                    activeExchanges.add(exchange);
+                }
+            });
+        });
+
+        const totalExchanges = this.exchangeByName.size;
+        this.logger.log(
+            `Active exchanges: ${activeExchanges.size}/${totalExchanges}\n` +
+            `Active exchanges: ${Array.from(activeExchanges).join(', ')}`
+        );
+
+        // Log inactive exchanges
+        const inactiveExchanges = Array.from(this.exchangeByName.keys())
+            .filter(exchange => !activeExchanges.has(exchange));
+        if (inactiveExchanges.length > 0) {
+            this.logger.warn(
+                `Inactive exchanges: ${inactiveExchanges.join(', ')}`
+            );
+        }
+
+        // Attempt to reconnect inactive exchanges
+        inactiveExchanges.forEach(exchangeName => {
+            const exchange = this.exchangeByName.get(exchangeName);
+            if (exchange) {
+                this.logger.log(`Attempting to reconnect to ${exchangeName}`);
+                void this.reconnectExchange(exchange, exchangeName);
+            }
+        });
+    }, 60000); // Every minute
+    
+    void this.watchTrades(exchangeToSymbols);
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
@@ -273,6 +245,96 @@ export class PredictorFeed implements BaseDataFeed {
       feed: feed,
       value: price,
     };
+  }
+
+  private async watchTrades(exchangeToSymbols: Map<string, Set<string>>) {
+    for (const [exchangeName, symbols] of exchangeToSymbols) {
+      const exchange = this.exchangeByName.get(exchangeName);
+      if (exchange === undefined) continue;
+
+      const marketIds: string[] = [];
+      for (const symbol of symbols) {
+        const market = exchange.markets[symbol];
+        if (market === undefined) {
+          this.logger.warn(`Market not found for ${symbol} on ${exchangeName}`);
+          continue;
+        }
+        marketIds.push(market.id);
+      }
+
+      // Watch each market separately
+      for (const marketId of marketIds) {
+        void this.watchSingleMarket(exchange, marketId, exchangeName);
+      }
+    }
+  }
+
+  private async watchSingleMarket(exchange: Exchange, marketId: string, exchangeName: string) {
+    while (true) {
+      try {
+        if (this.priceSource === PriceSource.DATABASE) {
+          const dbPrices = await this.fetchPricesFromDb(marketId);
+          
+          dbPrices.forEach(priceEvent => {
+            const prices = this.prices.get(priceEvent.symbol) || new Map<string, PriceInfo>();
+            prices.set(priceEvent.exchange, { 
+              price: priceEvent.price, 
+              time: new Date(priceEvent.timestamp).getTime(), 
+              exchange: priceEvent.exchange 
+            });
+            this.prices.set(priceEvent.symbol, prices);
+          });
+
+          // Poll every 5 seconds for DB
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } else {
+          // Original CCXT logic
+          const trades = await retry(
+            async () => exchange.watchTradesForSymbols([marketId], null, 100),
+            RETRY_BACKOFF_MS
+          );
+          trades.forEach(trade => {
+            const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
+            prices.set(exchangeName, { 
+              price: trade.price, 
+              time: trade.timestamp, 
+              exchange: exchangeName 
+            });
+            this.prices.set(trade.symbol, prices);
+          });
+        }
+      } catch (e) {
+        this.logger.error(
+          `Failed to fetch prices for ${marketId} using ${this.priceSource}: ${e}`
+        );
+        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
+      }
+    }
+  }
+
+  private async fetchPricesFromDb(symbol: string, timeWindowSeconds: number = 300) {
+    try {
+      const query = `
+        SELECT 
+          price,
+          timestamp,
+          exchange,
+          symbol,
+          base,
+          quote
+        FROM price_events
+        WHERE 
+          symbol = $1
+          AND timestamp > NOW() - interval '${timeWindowSeconds} seconds'
+        ORDER BY timestamp DESC
+      `;
+
+      const result = await this.pool.query(query, [symbol]);
+      return result.rows;
+    } catch (error) {
+      this.logger.error(`Error fetching prices from DB: ${error.message}`);
+      throw error;
+    }
   }
 
   private async getFeedPrice(feedId: FeedId, votingRoundId: number, isConversionRate: boolean = false): Promise<number> {
@@ -850,54 +912,6 @@ export class PredictorFeed implements BaseDataFeed {
         });
         
         this.lastReportedRound = votingRoundId;
-    }
-  }
-
-  private async fetchPricesFromDb(symbol: string, timeWindowSeconds: number = 300) {
-    try {
-      const query = `
-        SELECT 
-          price,
-          timestamp,
-          exchange,
-          symbol,
-          base,
-          quote
-        FROM price_events
-        WHERE 
-          symbol = $1
-          AND timestamp > NOW() - interval '${timeWindowSeconds} seconds'
-        ORDER BY timestamp DESC
-      `;
-
-      const result = await this.pool.query(query, [symbol]);
-      return result.rows;
-    } catch (error) {
-      this.logger.error(`Error fetching prices from DB: ${error.message}`);
-      throw error;
-    }
-  }
-
-  private async watchSingleMarket(exchange: Exchange, marketId: string, exchangeName: string) {
-    while (true) {
-      try {
-        const trades = await retry(
-          async () => exchange.watchTradesForSymbols([marketId], null, 100),
-          RETRY_BACKOFF_MS
-        );
-        trades.forEach(trade => {
-          const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-          prices.set(exchangeName, { 
-            price: trade.price, 
-            time: trade.timestamp, 
-            exchange: exchangeName 
-          });
-          this.prices.set(trade.symbol, prices);
-        });
-      } catch (e) {
-        this.logger.error(`Failed to watch trades for ${marketId} on ${exchangeName}: ${e}`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
-      }
     }
   }
 }
