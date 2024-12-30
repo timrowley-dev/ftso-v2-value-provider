@@ -1,5 +1,5 @@
 import { Logger } from "@nestjs/common";
-import ccxt, { Exchange, Trade } from "ccxt";
+import ccxt, { Exchange } from "ccxt";
 import { readFileSync } from "fs";
 import { FeedId, FeedValueData } from "../dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
@@ -67,15 +67,6 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_RESET_TIME = 30 * 60 * 1000; // 30 minutes
 
-  private readonly exchangeReliabilityScores = new Map<string, number>([
-    ['binance', 1.0],
-    ['coinbase', 0.95], 
-    ['kraken', 0.9]
-  ]);
-
-  private readonly predictorRateLimit = new Map<string, number>();
-  private readonly MIN_PREDICTOR_INTERVAL = 1000; // 1 second
-
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -92,7 +83,7 @@ export class PredictorFeed implements BaseDataFeed {
     const loadExchanges = [];
     for (const exchangeName of exchangeToSymbols.keys()) {
       try {
-        const exchange: Exchange = new ccxt[exchangeName]({ newUpdates: true });
+        const exchange: Exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
         this.exchangeByName.set(exchangeName, exchange);
         loadExchanges.push([exchangeName, retry(async () => exchange.loadMarkets(), 2, RETRY_BACKOFF_MS, this.logger)]);
       } catch (e) {
@@ -155,8 +146,6 @@ export class PredictorFeed implements BaseDataFeed {
     }, 60000); // Every minute
     
     void this.watchTrades(exchangeToSymbols);
-
-    setInterval(() => this.cleanupOldPrices(), 60 * 60 * 1000); // Run hourly
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
@@ -254,23 +243,13 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private async watchSingleMarket(exchange: Exchange, marketId: string, exchangeName: string) {
-    let consecutiveErrors = 0;
-    const MAX_CONSECUTIVE_ERRORS = 5;
-    
     while (true) {
       try {
-        const trades: Trade[] = await retry(
-          async () => exchange.watchTrades(marketId),
+        const trades = await retry(
+          async () => exchange.watchTradesForSymbols([marketId], null, 100),
           RETRY_BACKOFF_MS
         );
-        
-        // Reset error counter on success
-        consecutiveErrors = 0;
-        
-        // Handle single trade or array of trades
-        const tradesArray = Array.isArray(trades) ? trades : [trades];
-        
-        tradesArray.forEach(trade => {
+        trades.forEach(trade => {
           const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
           prices.set(exchangeName, { 
             price: trade.price, 
@@ -280,19 +259,9 @@ export class PredictorFeed implements BaseDataFeed {
           this.prices.set(trade.symbol, prices);
         });
       } catch (e) {
-        consecutiveErrors++;
-        
         this.logger.error(
-          `Failed to watch trades for ${marketId} on ${exchangeName}: ${e}. ` +
-          `Consecutive errors: ${consecutiveErrors}`
+          `Failed to watch trades for ${marketId} on ${exchangeName}: ${e}`
         );
-
-        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-          this.logger.error(`Too many consecutive errors, attempting reconnection...`);
-          await this.reconnectExchange(exchange, exchangeName);
-          consecutiveErrors = 0;
-        }
-        
         await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
       }
     }
@@ -398,35 +367,6 @@ export class PredictorFeed implements BaseDataFeed {
         this.logger.warn(`Unknown pricing method ${pricingMethod}, falling back to weighted median`);
         return this.weightedMedian(prices);
     }
-  }
-
-  private async calculatePriceStatistics(prices: PriceInfo[]) {
-    const now = Date.now();
-    const MAX_STALENESS = 5 * 60 * 1000; // 5 minutes
-
-    // Filter stale prices
-    let validPrices = prices.filter(p => (now - p.time) <= MAX_STALENESS);
-    
-    if (validPrices.length === 0) {
-      const mostRecentTime = Math.max(...prices.map(p => p.time));
-      validPrices = prices.filter(p => p.time === mostRecentTime);
-      this.logger.warn(
-        `All prices were stale. Using most recent prices from ${new Date(mostRecentTime).toISOString()}. ` +
-        `${validPrices.length} prices selected`
-      );
-    }
-
-    // Calculate statistics
-    const values = validPrices.map(p => p.price);
-    const mean = this.calculateMean(values);
-    const std = this.calculateStandardDeviation(values, mean);
-
-    return {
-      validPrices,
-      mean,
-      std,
-      originalCount: prices.length
-    };
   }
 
   private getEnhancedPrice(prices: PriceInfo[]): number {
@@ -636,21 +576,17 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private getExchangeReliability(exchange: string): number {
-    return this.exchangeReliabilityScores.get(exchange) || 0.8;
+    const reliabilityScores = {
+      'binance': 1.0,
+      'coinbase': 0.95,
+      'kraken': 0.9,
+      'default': 0.8
+    };
+    return reliabilityScores[exchange] || reliabilityScores.default;
   }
 
   private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
     const baseSymbol = feedId.name.split("/")[0];
-    
-    // Check rate limit
-    const lastCall = this.predictorRateLimit.get(baseSymbol) || 0;
-    const now = Date.now();
-    if (now - lastCall < this.MIN_PREDICTOR_INTERVAL) {
-      return null;
-    }
-    
-    this.predictorRateLimit.set(baseSymbol, now);
-    
     const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
     this.logger.debug(`axios URL ${axiosURL}`);
     try {
@@ -687,7 +623,13 @@ export class PredictorFeed implements BaseDataFeed {
     try {
       const jsonString = readFileSync(configPath, "utf-8");
       const config: FeedConfig[] = JSON.parse(jsonString);
-      this.validateConfig(config);
+
+      if (config.find(feed => feedsEqual(feed.feed, usdtToUsdFeedId)) === undefined) {
+        throw new Error("Must provide USDT feed sources, as it is used for USD conversion.");
+      }
+      if (config.find(feed => feedsEqual(feed.feed, usdcToUsdFeedId)) === undefined) {
+        throw new Error("Must provide USDC feed sources, as it is used for USD conversion.");
+      }
 
       this.logger.log(`Supported feeds: ${JSON.stringify(config.map(f => f.feed))}`);
 
@@ -696,28 +638,6 @@ export class PredictorFeed implements BaseDataFeed {
       this.logger.error("Error parsing JSON config:", err);
       throw err;
     }
-  }
-
-  private validateConfig(config: FeedConfig[]): void {
-    if (!Array.isArray(config)) {
-      throw new Error('Config must be an array');
-    }
-
-    const requiredFeeds = [usdtToUsdFeedId, usdcToUsdFeedId];
-    for (const required of requiredFeeds) {
-      if (!config.find(feed => feedsEqual(feed.feed, required))) {
-        throw new Error(`Missing required feed configuration: ${required.name}`);
-      }
-    }
-
-    config.forEach(feedConfig => {
-      if (!feedConfig.sources || !Array.isArray(feedConfig.sources)) {
-        throw new Error(`Invalid sources for feed ${feedConfig.feed.name}`);
-      }
-      if (feedConfig.sources.length === 0) {
-        throw new Error(`No sources configured for feed ${feedConfig.feed.name}`);
-      }
-    });
   }
 
   private weightedMedian(prices: PriceInfo[]): number {
@@ -923,23 +843,6 @@ export class PredictorFeed implements BaseDataFeed {
         
         this.lastReportedRound = votingRoundId;
     }
-  }
-
-  private cleanupOldPrices() {
-    const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-    const now = Date.now();
-
-    this.prices.forEach((exchangePrices, symbol) => {
-      exchangePrices.forEach((priceInfo, exchange) => {
-        if (now - priceInfo.time > MAX_AGE) {
-          exchangePrices.delete(exchange);
-        }
-      });
-      
-      if (exchangePrices.size === 0) {
-        this.prices.delete(symbol);
-      }
-    });
   }
 }
 
