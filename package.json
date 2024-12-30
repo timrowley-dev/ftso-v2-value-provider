@@ -24,14 +24,14 @@
   },
   "engineStrict": true,
   "dependencies": {
-    "@nestjs/common": "^10.0.0",
+    "@nestjs/common": "^10.3.10",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.3.1",
     "axios": "^1.7.2",
-    "ccxt": "^4.0.64",
+    "ccxt": "^4.4.43",
     "class-transformer": "^0.5.1",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.4.7",
     "helmet": "^7.1.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1"
