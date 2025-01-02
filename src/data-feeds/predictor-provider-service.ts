@@ -46,8 +46,6 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly logger = new Logger(PredictorFeed.name);
   protected initialized = false;
   private config: FeedConfig[];
-  private connectedExchanges = 0;
-  private totalExchanges = 0;
 
   private readonly exchangeByName: Map<string, Exchange> = new Map();
 
@@ -66,14 +64,11 @@ export class PredictorFeed implements BaseDataFeed {
       }
     }
 
-    this.totalExchanges = exchangeToSymbols.size;
-    this.logger.log(
-      `Connecting to exchanges: ${JSON.stringify(Array.from(exchangeToSymbols.keys()))} (0/${this.totalExchanges} connected)`
-    );
+    this.logger.log(`Connecting to exchanges: ${JSON.stringify(Array.from(exchangeToSymbols.keys()))}`);
     const loadExchanges = [];
     for (const exchangeName of exchangeToSymbols.keys()) {
       try {
-        const exchange: Exchange = new ccxt[exchangeName]({ newUpdates: true });
+        const exchange: Exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
         this.exchangeByName.set(exchangeName, exchange);
         loadExchanges.push([exchangeName, retry(async () => exchange.loadMarkets(), 2, RETRY_BACKOFF_MS, this.logger)]);
       } catch (e) {
@@ -85,10 +80,7 @@ export class PredictorFeed implements BaseDataFeed {
     for (const [exchangeName, loadExchange] of loadExchanges) {
       try {
         await loadExchange;
-        this.connectedExchanges++;
-        this.logger.log(
-          `Exchange ${exchangeName} initialized (${this.connectedExchanges}/${this.totalExchanges} connected)`
-        );
+        this.logger.log(`Exchange ${exchangeName} initialized`);
       } catch (e) {
         this.logger.warn(`Failed to load markets for ${exchangeName}, ignoring: ${e}`);
         exchangeToSymbols.delete(exchangeName);
@@ -96,16 +88,11 @@ export class PredictorFeed implements BaseDataFeed {
     }
     this.initialized = true;
 
-    this.logger.log(
-      `Initialization done, watching trades... (${this.connectedExchanges}/${this.totalExchanges} exchanges connected)`
-    );
+    this.logger.log(`Initialization done, watching trades...`);
     void this.watchTrades(exchangeToSymbols);
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
-    this.logger.log(
-      `Getting values for ${feeds.length} feeds (using ${this.connectedExchanges}/${this.totalExchanges} exchanges)`
-    );
     const results: FeedValueData[] = [];
     for (const feed of feeds) {
       const value = await this.getValue(feed, votingRoundId);
@@ -115,9 +102,6 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
-    this.logger.log(
-      `Getting value for ${feed.name} (using ${this.connectedExchanges}/${this.totalExchanges} exchanges)`
-    );
     let price: number;
 
     if ([].includes(feed.name) || votingRoundId === 0) {
@@ -168,19 +152,12 @@ export class PredictorFeed implements BaseDataFeed {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
-        for (const marketId of marketIds) {
-          const trades = await retry(async () => exchange.watchTrades(marketId), RETRY_BACKOFF_MS);
-          const tradesArray = Array.isArray(trades) ? trades : [trades];
-          tradesArray.forEach(trade => {
-            const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-            prices.set(exchangeName, {
-              price: trade.price,
-              time: trade.timestamp,
-              exchange: exchangeName,
-            });
-            this.prices.set(trade.symbol, prices);
-          });
-        }
+        const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
+        trades.forEach(trade => {
+          const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
+          prices.set(exchangeName, { price: trade.price, time: trade.timestamp, exchange: exchangeName });
+          this.prices.set(trade.symbol, prices);
+        });
       } catch (e) {
         this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
         return;
