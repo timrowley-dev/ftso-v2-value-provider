@@ -1286,6 +1286,18 @@
         "symbol": "DAI/USDT"
       },
       {
+        "exchange": "huobi",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "DAI/USD"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "DAI/USDT"
+      },
+      {
         "exchange": "okx",
         "symbol": "DAI/USDT"
       }
