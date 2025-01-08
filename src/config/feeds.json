@@ -1756,6 +1756,18 @@
         "symbol": "AAVE/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "AAVE/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "AAVE/USDC"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "AAVE/USDT"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "AAVE/USDT"
       },
