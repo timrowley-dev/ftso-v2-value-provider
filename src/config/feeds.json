@@ -11,8 +11,20 @@
         "symbol": "FLR/USDT"
       },
       {
+        "exchange": "huobi",
+        "symbol": "FLR/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "FLR/USD"
+      },
+      {
         "exchange": "kucoin",
         "symbol": "FLR/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "FLR/USDC"
       },
       {
         "exchange": "okx",
@@ -1751,6 +1763,14 @@
         "symbol": "QNT/USD"
       },
       {
+        "exchange": "coinbase",
+        "symbol": "QNT/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "QNT/USD"
+      },
+      {
         "exchange": "kucoin",
         "symbol": "QNT/USDT"
       },
@@ -1825,6 +1845,14 @@
         "symbol": "FTM/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "FTM/USDC"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "FTM/USDT"
       },
@@ -1846,6 +1874,18 @@
       },
       {
         "exchange": "bybit",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "FTM/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "FTM/USD"
+      },
+      {
+        "exchange": "kucoin",
         "symbol": "FTM/USDT"
       }
     ]
@@ -1981,6 +2021,14 @@
         "symbol": "RENDER/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "RENDER/USDC"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "RENDER/USDT"
       },
@@ -2006,6 +2054,18 @@
       },
       {
         "exchange": "gate",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "RENDER/USD"
+      },
+      {
+        "exchange": "kucoin",
         "symbol": "RENDER/USDT"
       }
     ]
