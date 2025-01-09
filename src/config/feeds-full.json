@@ -7234,10 +7234,6 @@
     },
     "sources": [
       {
-        "exchange": "ascendex",
-        "symbol": "USDX/USDT"
-      },
-      {
         "exchange": "bitmart",
         "symbol": "USDX/USDT"
       }
