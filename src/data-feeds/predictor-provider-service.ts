@@ -20,7 +20,7 @@ enum FeedCategory {
 
 const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
-const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "average"; // 'average' or 'weighted-median'
+const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average' or 'weighted-median'
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 
 interface FeedConfig {
