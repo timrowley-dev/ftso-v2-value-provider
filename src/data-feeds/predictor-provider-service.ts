@@ -20,6 +20,8 @@ enum FeedCategory {
 
 const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
+const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "average"; // 'average' or 'weighted-median'
+const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 
 interface FeedConfig {
   feed: FeedId;
@@ -172,8 +174,7 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    const prices: number[] = [];
-
+    const priceInfos: PriceInfo[] = [];
     let usdtToUsd = undefined;
 
     for (const source of config.sources) {
@@ -182,20 +183,78 @@ export class PredictorFeed implements BaseDataFeed {
 
       if (source.symbol.endsWith("USDT")) {
         if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
-        prices.push(info.price * usdtToUsd);
+        priceInfos.push({
+          price: info.price * usdtToUsd,
+          time: info.time,
+          exchange: info.exchange,
+        });
       } else {
-        prices.push(info.price);
+        priceInfos.push(info);
       }
     }
 
-    if (prices.length === 0) {
+    if (priceInfos.length === 0) {
       this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
       return undefined;
     }
 
-    const result = prices.reduce((a, b) => a + b, 0) / prices.length;
-    return result;
+    // Use selected calculation method
+    if (PRICE_CALCULATION_METHOD === "weighted-median") {
+      return this.weightedMedian(priceInfos);
+    } else {
+      // Original average calculation
+      return priceInfos.reduce((a, b) => a + b.price, 0) / priceInfos.length;
+    }
   }
+
+  private weightedMedian(prices: PriceInfo[]): number {
+    if (prices.length === 0) {
+      throw new Error("Price list cannot be empty.");
+    }
+
+    prices.sort((a, b) => a.time - b.time);
+    const now = Date.now();
+
+    // Calculate exponential weights
+    const weights = prices.map(data => {
+      const timeDifference = now - data.time;
+      return Math.exp(-lambda * timeDifference);
+    });
+
+    // Normalize weights
+    const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+    const normalizedWeights = weights.map(weight => weight / weightSum);
+
+    // Combine prices and weights
+    const weightedPrices = prices.map((data, i) => ({
+      price: data.price,
+      weight: normalizedWeights[i],
+      exchange: data.exchange,
+      staleness: now - data.time,
+    }));
+
+    // Sort by price for median calculation
+    weightedPrices.sort((a, b) => a.price - b.price);
+
+    this.logger.debug("Weighted prices:");
+    for (const { price, weight, exchange, staleness } of weightedPrices) {
+      this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
+    }
+
+    // Find weighted median
+    let cumulativeWeight = 0;
+    for (let i = 0; i < weightedPrices.length; i++) {
+      cumulativeWeight += weightedPrices[i].weight;
+      if (cumulativeWeight >= 0.5) {
+        this.logger.debug(`Weighted median: ${weightedPrices[i].price}`);
+        return weightedPrices[i].price;
+      }
+    }
+
+    this.logger.warn("Unable to calculate weighted median");
+    return undefined;
+  }
+
   private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
     const baseSymbol = feedId.name.split("/")[0];
     const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
