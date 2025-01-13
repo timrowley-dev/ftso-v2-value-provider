@@ -45,6 +45,7 @@ interface PredictionResponse {
 }
 
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
+const usdcToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDC/USD" };
 
 export class PredictorFeed implements BaseDataFeed {
   private readonly logger = new Logger(PredictorFeed.name);
@@ -285,8 +286,9 @@ export class PredictorFeed implements BaseDataFeed {
 
     const priceInfos: PriceInfo[] = [];
     let usdtToUsd = undefined;
+    let usdcToUsd = undefined;
     const activeExchanges = new Set<string>();
-    const inactiveExchanges = new Map<string, string>(); // Track inactive exchanges and reasons
+    const inactiveExchanges = new Map<string, string>();
 
     for (const source of config.sources) {
       const prices = this.prices.get(source.symbol);
@@ -301,8 +303,7 @@ export class PredictorFeed implements BaseDataFeed {
         continue;
       }
 
-      // Adjust stale data check based on source - prioritize spot data with shorter window
-      const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000; // 30s for spot, 5m for trades
+      const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
       if (Date.now() - info.time > staleness) {
         inactiveExchanges.set(
           source.exchange,
@@ -313,10 +314,19 @@ export class PredictorFeed implements BaseDataFeed {
 
       activeExchanges.add(source.exchange);
 
+      // Handle USDT and USDC pairs separately
       if (source.symbol.endsWith("USDT")) {
         if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
         priceInfos.push({
           price: info.price * usdtToUsd,
+          time: info.time,
+          exchange: info.exchange,
+          volume: info.volume,
+        });
+      } else if (source.symbol.endsWith("USDC")) {
+        if (usdcToUsd === undefined) usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId);
+        priceInfos.push({
+          price: info.price * usdcToUsd,
           time: info.time,
           exchange: info.exchange,
           volume: info.volume,
@@ -486,8 +496,12 @@ export class PredictorFeed implements BaseDataFeed {
       const jsonString = readFileSync(configPath, "utf-8");
       const config: FeedConfig[] = JSON.parse(jsonString);
 
+      // Validate both USDT and USDC feed sources exist
       if (config.find(feed => feedsEqual(feed.feed, usdtToUsdFeedId)) === undefined) {
         throw new Error("Must provide USDT feed sources, as it is used for USD conversion.");
+      }
+      if (config.find(feed => feedsEqual(feed.feed, usdcToUsdFeedId)) === undefined) {
+        throw new Error("Must provide USDC feed sources, as it is used for USD conversion.");
       }
 
       this.logger.log(`Supported feeds: ${JSON.stringify(config.map(f => f.feed))}`);
