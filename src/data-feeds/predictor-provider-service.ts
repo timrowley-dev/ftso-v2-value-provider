@@ -308,17 +308,16 @@ export class PredictorFeed implements BaseDataFeed {
     // Sort by price for median calculation
     weightedPrices.sort((a, b) => a.price - b.price);
 
-    this.logger.debug("Weighted prices:");
-    for (const { price, weight, exchange, staleness } of weightedPrices) {
-      this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
-    }
-
-    // Add debug logging
-    this.logger.debug("Volume weights:");
+    this.logger.log("Volume weights:");
     prices.forEach(data => {
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
-      this.logger.debug(`Exchange: ${data.exchange}, Volume: ${data.volume}, Weight: ${volumeWeight}`);
+      this.logger.log(`Exchange: ${data.exchange}, Volume: ${data.volume}, Weight: ${volumeWeight}`);
     });
+
+    this.logger.log("Weighted prices:");
+    for (const { price, weight, exchange, staleness } of weightedPrices) {
+      this.logger.log(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
+    }
 
     // Find weighted median
     let cumulativeWeight = 0;
