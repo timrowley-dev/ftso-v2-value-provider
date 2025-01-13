@@ -347,7 +347,16 @@ export class PredictorFeed implements BaseDataFeed {
     if (PRICE_CALCULATION_METHOD === "weighted-median") {
       return this.weightedMedian(filteredPrices);
     } else {
-      return filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+      // Add logging for average calculation
+      this.logger.log("Using simple average calculation:");
+      filteredPrices.forEach(price => {
+        this.logger.log(
+          `  ${price.exchange}: ${price.price} (Source: ${price.source || "websocket"}, Volume: ${price.volume})`
+        );
+      });
+      const average = filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+      this.logger.log(`Final average price: ${average}`);
+      return average;
     }
   }
 
