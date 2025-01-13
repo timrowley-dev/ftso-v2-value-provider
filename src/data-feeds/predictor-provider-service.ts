@@ -232,10 +232,13 @@ export class PredictorFeed implements BaseDataFeed {
 
     const priceInfos: PriceInfo[] = [];
     let usdtToUsd = undefined;
+    const activeExchanges = new Set<string>(); // Track unique exchanges
 
     for (const source of config.sources) {
       const info = this.prices.get(source.symbol)?.get(source.exchange);
       if (info === undefined) continue;
+
+      activeExchanges.add(source.exchange); // Add to tracking set
 
       if (source.symbol.endsWith("USDT")) {
         if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
@@ -249,6 +252,11 @@ export class PredictorFeed implements BaseDataFeed {
         priceInfos.push(info);
       }
     }
+
+    // Log exchange source information
+    this.logger.log(
+      `${feedId.name} - Active exchanges: ${activeExchanges.size}/${config.sources.length} (${Array.from(activeExchanges).join(", ")})`
+    );
 
     if (priceInfos.length === 0) {
       this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
