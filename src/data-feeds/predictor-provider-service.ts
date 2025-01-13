@@ -205,26 +205,31 @@ export class PredictorFeed implements BaseDataFeed {
     while (isRunning) {
       try {
         for (const marketId of marketIds) {
-          const ticker = await retry(async () => exchange.fetchTicker(marketId), RETRY_BACKOFF_MS).catch(() => null);
+          try {
+            // Use fetchTicker instead of fetchTrades for spot prices
+            const ticker = await exchange.fetchTicker(marketId);
 
-          if (ticker && (ticker.last || ticker.close)) {
-            const prices = this.prices.get(marketId) || new Map<string, PriceInfo>();
-            const price = ticker.last || ticker.close;
+            if (ticker && (ticker.last || ticker.close)) {
+              const price = ticker.last || ticker.close;
+              const prices = this.prices.get(marketId) || new Map<string, PriceInfo>();
 
-            this.logger.debug(
-              `[${exchangeName}] ${marketId} Spot price: ${price} ` +
-                `(volume: ${ticker.baseVolume || 0}, timestamp: ${new Date(ticker.timestamp || Date.now()).toISOString()})`
-            );
+              prices.set(exchangeName, {
+                price: price,
+                time: ticker.timestamp || Date.now(),
+                exchange: exchangeName,
+                volume: ticker.baseVolume || 0,
+                source: "spot",
+              });
 
-            prices.set(exchangeName, {
-              price: price,
-              time: ticker.timestamp || Date.now(),
-              exchange: exchangeName,
-              volume: ticker.baseVolume || 0,
-              source: "spot",
-            });
+              this.prices.set(marketId, prices);
 
-            this.prices.set(marketId, prices);
+              this.logger.debug(
+                `[${exchangeName}] ${marketId} Spot price: ${price} ` + `(volume: ${ticker.baseVolume || 0})`
+              );
+            }
+          } catch (e) {
+            this.logger.debug(`Failed to fetch ticker for ${marketId} on ${exchangeName}: ${e.message}`);
+            continue; // Continue with next marketId even if one fails
           }
         }
       } catch (e) {
