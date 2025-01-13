@@ -35,6 +35,7 @@ interface PriceInfo {
   price: number;
   time: number;
   exchange: string;
+  volume: number;
 }
 
 interface PredictionResponse {
@@ -174,7 +175,12 @@ export class PredictorFeed implements BaseDataFeed {
         const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
         trades.forEach(trade => {
           const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-          prices.set(exchangeName, { price: trade.price, time: trade.timestamp, exchange: exchangeName });
+          prices.set(exchangeName, {
+            price: trade.price,
+            time: trade.timestamp,
+            exchange: exchangeName,
+            volume: trade.amount || 0,
+          });
           this.prices.set(trade.symbol, prices);
         });
       } catch (e) {
@@ -199,6 +205,7 @@ export class PredictorFeed implements BaseDataFeed {
               price: lastTrade.price,
               time: lastTrade.timestamp,
               exchange: exchangeName,
+              volume: lastTrade.amount || 0,
             });
             this.prices.set(lastTrade.symbol, prices);
           }
@@ -236,6 +243,7 @@ export class PredictorFeed implements BaseDataFeed {
           price: info.price * usdtToUsd,
           time: info.time,
           exchange: info.exchange,
+          volume: info.volume,
         });
       } else {
         priceInfos.push(info);
@@ -272,10 +280,17 @@ export class PredictorFeed implements BaseDataFeed {
     prices.sort((a, b) => a.time - b.time);
     const now = Date.now();
 
-    // Calculate exponential weights
+    // Calculate total volume
+    const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
+
+    // Calculate combined weights using both time and volume
     const weights = prices.map(data => {
       const timeDifference = now - data.time;
-      return Math.exp(-lambda * timeDifference);
+      const timeWeight = Math.exp(-lambda * timeDifference);
+      const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
+
+      // Combine weights (you can adjust the balance between time and volume)
+      return timeWeight * 0.7 + volumeWeight * 0.3; // 70% time, 30% volume weight
     });
 
     // Normalize weights
@@ -297,6 +312,13 @@ export class PredictorFeed implements BaseDataFeed {
     for (const { price, weight, exchange, staleness } of weightedPrices) {
       this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
     }
+
+    // Add debug logging
+    this.logger.debug("Volume weights:");
+    prices.forEach(data => {
+      const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
+      this.logger.debug(`Exchange: ${data.exchange}, Volume: ${data.volume}, Weight: ${volumeWeight}`);
+    });
 
     // Find weighted median
     let cumulativeWeight = 0;
