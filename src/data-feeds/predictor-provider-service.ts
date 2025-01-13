@@ -202,11 +202,13 @@ export class PredictorFeed implements BaseDataFeed {
   private async pollTrades(exchange: Exchange, marketIds: string[], exchangeName: string) {
     const POLL_INTERVAL = 10000; // 10 seconds
     const isRunning = true;
+    this.logger.log(`Starting spot price polling for ${exchangeName}`);
+
     while (isRunning) {
       try {
         for (const marketId of marketIds) {
           try {
-            // Use fetchTicker instead of fetchTrades for spot prices
+            this.logger.debug(`Fetching spot price for ${marketId} on ${exchangeName}`);
             const ticker = await exchange.fetchTicker(marketId);
 
             if (ticker && (ticker.last || ticker.close)) {
@@ -224,12 +226,13 @@ export class PredictorFeed implements BaseDataFeed {
               this.prices.set(marketId, prices);
 
               this.logger.debug(
-                `[${exchangeName}] ${marketId} Spot price: ${price} ` + `(volume: ${ticker.baseVolume || 0})`
+                `[${exchangeName}] ${marketId} Spot price updated: ${price} ` + `(volume: ${ticker.baseVolume || 0})`
               );
+            } else {
+              this.logger.debug(`No valid spot price found for ${marketId} on ${exchangeName}`);
             }
           } catch (e) {
-            this.logger.debug(`Failed to fetch ticker for ${marketId} on ${exchangeName}: ${e.message}`);
-            continue; // Continue with next marketId even if one fails
+            this.logger.warn(`Failed to fetch ticker for ${marketId} on ${exchangeName}: ${e.message}`);
           }
         }
       } catch (e) {
