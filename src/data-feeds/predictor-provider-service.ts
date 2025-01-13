@@ -178,15 +178,17 @@ export class PredictorFeed implements BaseDataFeed {
           const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
           prices.set(exchangeName, {
             price: trade.price,
-            time: trade.timestamp,
+            time: trade.timestamp || Date.now(),
             exchange: exchangeName,
             volume: trade.amount || 0,
+            source: "trade",
           });
           this.prices.set(trade.symbol, prices);
         });
       } catch (e) {
         this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
-        return;
+        // Don't return on error, try to reconnect
+        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
       }
     }
   }
@@ -197,48 +199,26 @@ export class PredictorFeed implements BaseDataFeed {
     while (isRunning) {
       try {
         for (const marketId of marketIds) {
-          const [trades, ticker] = await Promise.all([
-            retry(async () => exchange.fetchTrades(marketId), RETRY_BACKOFF_MS).catch(() => []),
-            retry(async () => exchange.fetchTicker(marketId), RETRY_BACKOFF_MS).catch(() => null),
-          ]);
+          // Try ticker first as it's usually more reliable
+          const ticker = await retry(async () => exchange.fetchTicker(marketId), RETRY_BACKOFF_MS).catch(() => null);
 
-          const prices = this.prices.get(marketId) || new Map<string, PriceInfo>();
+          if (ticker && (ticker.last || ticker.close)) {
+            const prices = this.prices.get(marketId) || new Map<string, PriceInfo>();
+            const price = ticker.last || ticker.close;
 
-          // Update from ticker first (base price)
-          if (ticker && ticker.last) {
             this.logger.debug(
-              `[${exchangeName}] ${marketId} Spot price: ${ticker.last} ` +
+              `[${exchangeName}] ${marketId} Spot price: ${price} ` +
                 `(volume: ${ticker.baseVolume || 0}, timestamp: ${new Date(ticker.timestamp || Date.now()).toISOString()})`
             );
+
             prices.set(exchangeName, {
-              price: ticker.last,
+              price: price,
               time: ticker.timestamp || Date.now(),
               exchange: exchangeName,
               volume: ticker.baseVolume || 0,
               source: "spot",
             });
-          }
 
-          // Override with trade data if available and more recent
-          if (trades.length > 0) {
-            const lastTrade = trades[trades.length - 1];
-            if (!ticker || lastTrade.timestamp > ticker.timestamp) {
-              this.logger.debug(
-                `[${exchangeName}] ${marketId} Trade price: ${lastTrade.price} ` +
-                  `(volume: ${lastTrade.amount || 0}, timestamp: ${new Date(lastTrade.timestamp || Date.now()).toISOString()}) ` +
-                  `[Overriding spot price as more recent]`
-              );
-              prices.set(exchangeName, {
-                price: lastTrade.price,
-                time: lastTrade.timestamp || Date.now(),
-                exchange: exchangeName,
-                volume: lastTrade.amount || 0,
-                source: "trade",
-              });
-            }
-          }
-
-          if (prices.size > 0) {
             this.prices.set(marketId, prices);
           }
         }
@@ -354,7 +334,7 @@ export class PredictorFeed implements BaseDataFeed {
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
 
       this.logger.log(`Exchange: ${data.exchange}`);
-      this.logger.log(`  Price: ${data.price}`);
+      this.logger.log(`  Price: ${data.price} (Source: ${data.source || "websocket"})`);
       this.logger.log(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
       this.logger.log(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
 
@@ -368,7 +348,10 @@ export class PredictorFeed implements BaseDataFeed {
 
     this.logger.log("Final normalized weights:");
     prices.forEach((price, i) => {
-      this.logger.log(`  ${price.exchange}: ${normalizedWeights[i].toFixed(4)} (price: ${price.price})`);
+      this.logger.log(
+        `  ${price.exchange}: ${normalizedWeights[i].toFixed(4)} ` +
+          `(price: ${price.price}, source: ${price.source || "websocket"})`
+      );
     });
 
     // Calculate cumulative weights and find median
