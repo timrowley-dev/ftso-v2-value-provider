@@ -103,7 +103,7 @@ export class PredictorFeed implements BaseDataFeed {
     this.initialized = true;
 
     this.logger.log(`Initialization done, watching trades...`);
-    void this.watchTrades(exchangeToSymbols);
+    void this.initWatchTrades(exchangeToSymbols);
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
@@ -142,7 +142,7 @@ export class PredictorFeed implements BaseDataFeed {
     };
   }
 
-  private async watchTrades(exchangeToSymbols: Map<string, Set<string>>) {
+  private async initWatchTrades(exchangeToSymbols: Map<string, Set<string>>) {
     for (const [exchangeName, symbols] of exchangeToSymbols) {
       const exchange = this.exchangeByName.get(exchangeName);
       if (exchange === undefined) continue;
@@ -161,33 +161,39 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
-    this.logger.log(`Watching trades for ${marketIds} on exchange ${exchangeName}`);
+    this.logger.log(`Watching ${marketIds} on exchange ${exchangeName}`);
 
-    // Check if exchange supports websocket
-    if (!("watchTradesForSymbols" in exchange)) {
-      this.logger.debug(`Exchange ${exchangeName} doesn't support websocket, using REST polling`);
-      void this.pollTrades(exchange, marketIds, exchangeName);
-      return;
+    // Always start polling for spot prices
+    void this.pollTrades(exchange, marketIds, exchangeName);
+
+    // Optionally collect trades as backup if websocket is available
+    if ("watchTradesForSymbols" in exchange) {
+      void this.watchTrades(exchange, marketIds, exchangeName);
     }
+  }
 
+  private async watchTrades(exchange: Exchange, marketIds: string[], exchangeName: string) {
     const isRunning = true;
     while (isRunning) {
       try {
         const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
         trades.forEach(trade => {
           const prices = this.prices.get(trade.symbol) || new Map<string, PriceInfo>();
-          prices.set(exchangeName, {
-            price: trade.price,
-            time: trade.timestamp || Date.now(),
-            exchange: exchangeName,
-            volume: trade.amount || 0,
-            source: "trade",
-          });
-          this.prices.set(trade.symbol, prices);
+          // Only update if we don't have a recent spot price
+          const existingPrice = prices.get(exchangeName);
+          if (!existingPrice || existingPrice.source !== "spot" || Date.now() - existingPrice.time > 60000) {
+            prices.set(exchangeName, {
+              price: trade.price,
+              time: trade.timestamp || Date.now(),
+              exchange: exchangeName,
+              volume: trade.amount || 0,
+              source: "trade",
+            });
+            this.prices.set(trade.symbol, prices);
+          }
         });
       } catch (e) {
         this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
-        // Don't return on error, try to reconnect
         await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS));
       }
     }
@@ -199,7 +205,6 @@ export class PredictorFeed implements BaseDataFeed {
     while (isRunning) {
       try {
         for (const marketId of marketIds) {
-          // Try ticker first as it's usually more reliable
           const ticker = await retry(async () => exchange.fetchTicker(marketId), RETRY_BACKOFF_MS).catch(() => null);
 
           if (ticker && (ticker.last || ticker.close)) {
@@ -260,8 +265,8 @@ export class PredictorFeed implements BaseDataFeed {
         continue;
       }
 
-      // Adjust stale data check based on source
-      const staleness = info.source === "trade" ? 5 * 60 * 1000 : 15 * 60 * 1000; // 5 mins for trades, 15 for spot
+      // Adjust stale data check based on source - prioritize spot data with shorter window
+      const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000; // 30s for spot, 5m for trades
       if (Date.now() - info.time > staleness) {
         inactiveExchanges.set(
           source.exchange,
