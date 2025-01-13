@@ -294,7 +294,8 @@ export class PredictorFeed implements BaseDataFeed {
       this.logger.log(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
       this.logger.log(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
 
-      return timeWeight * 0.7 + volumeWeight * 0.3;
+      // Change weight ratio to 95/5
+      return timeWeight * 0.95 + volumeWeight * 0.05;
     });
 
     // Normalize weights
