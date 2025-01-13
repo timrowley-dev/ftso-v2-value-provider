@@ -321,10 +321,22 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Find weighted median
     let cumulativeWeight = 0;
+    const midpoint = 0.5;
+
     for (let i = 0; i < weightedPrices.length; i++) {
+      const prevWeight = cumulativeWeight;
       cumulativeWeight += weightedPrices[i].weight;
-      if (cumulativeWeight >= 0.5) {
-        this.logger.debug(`Weighted median: ${weightedPrices[i].price}`);
+
+      // If this price spans the 0.5 point
+      if (prevWeight < midpoint && cumulativeWeight >= midpoint) {
+        // If we're exactly at 0.5, take average of this price and next price
+        if (cumulativeWeight === midpoint && i < weightedPrices.length - 1) {
+          const medianPrice = (weightedPrices[i].price + weightedPrices[i + 1].price) / 2;
+          this.logger.debug(`Weighted median (average): ${medianPrice}`);
+          return medianPrice;
+        }
+
+        this.logger.debug(`Weighted median: ${weightedPrices[i].price} from ${weightedPrices[i].exchange}`);
         return weightedPrices[i].price;
       }
     }
