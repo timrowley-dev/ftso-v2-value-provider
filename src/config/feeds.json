@@ -36,16 +36,28 @@
     "feed": { "category": 1, "name": "SGB/USD" },
     "sources": [
       {
+        "exchange": "bitrue",
+        "symbol": "SGB/USDT"
+      },
+      {
         "exchange": "bitstamp",
         "symbol": "SGB/USD"
       },
       {
-        "exchange": "gate",
+        "exchange": "digifinex",
+        "symbol": "SGB/USDT"
+      },
+      {
+        "exchange": "gateio",
         "symbol": "SGB/USDT"
       },
       {
         "exchange": "kraken",
         "symbol": "SGB/USD"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "SGB/USDT"
       }
     ]
   },
@@ -1274,19 +1286,51 @@
     "feed": { "category": 1, "name": "DAI/USD" },
     "sources": [
       {
-        "exchange": "binance",
+        "exchange": "binanceus",
         "symbol": "DAI/USDT"
       },
       {
-        "exchange": "bybit",
+        "exchange": "bingx",
         "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "bitfinex",
+        "symbol": "DAI/USD"
       },
       {
         "exchange": "bitget",
         "symbol": "DAI/USDT"
       },
       {
-        "exchange": "cryptocom",
+        "exchange": "bitget",
+        "symbol": "DAI/USDC"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "DAI/USDC"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "bitstamp",
+        "symbol": "DAI/USD"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "DAI/USD"
+      },
+      {
+        "exchange": "coinex",
         "symbol": "DAI/USDT"
       },
       {
@@ -1294,8 +1338,32 @@
         "symbol": "DAI/USD"
       },
       {
-        "exchange": "gate",
+        "exchange": "cryptocom",
         "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "exmo",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "exmo",
+        "symbol": "DAI/USD"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "gemini",
+        "symbol": "DAI/USD"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "DAI/USDC"
       },
       {
         "exchange": "huobi",
@@ -1310,7 +1378,39 @@
         "symbol": "DAI/USDT"
       },
       {
+        "exchange": "latoken",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "DAI/USDT"
+      },
+      {
         "exchange": "okx",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "DAI/USDC"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "poloniex",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "whitebit",
+        "symbol": "DAI/USDT"
+      },
+      {
+        "exchange": "xt",
         "symbol": "DAI/USDT"
       }
     ]
@@ -2123,7 +2223,15 @@
         "symbol": "RUNE/USDT"
       },
       {
+        "exchange": "fmfwio",
+        "symbol": "RUNE/USDT"
+      },
+      {
         "exchange": "bitget",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "bitrue",
         "symbol": "RUNE/USDT"
       },
       {
@@ -2131,11 +2239,27 @@
         "symbol": "RUNE/USDT"
       },
       {
+        "exchange": "coinex",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "RUNE/USD"
+      },
+      {
         "exchange": "cryptocom",
         "symbol": "RUNE/USDT"
       },
       {
-        "exchange": "gate",
+        "exchange": "gateio",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "RUNE/USDC"
+      },
+      {
+        "exchange": "hitbtc",
         "symbol": "RUNE/USDT"
       },
       {
@@ -2153,6 +2277,30 @@
       {
         "exchange": "kucoin",
         "symbol": "RUNE/USDC"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "poloniex",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "whitebit",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "woo",
+        "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "RUNE/USDT"
       }
     ]
   },

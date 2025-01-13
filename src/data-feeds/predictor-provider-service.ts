@@ -198,18 +198,26 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
+    // Apply outlier removal
+    const filteredPrices = this.removeOutliers(priceInfos);
+
     // Use selected calculation method
     if (PRICE_CALCULATION_METHOD === "weighted-median") {
-      return this.weightedMedian(priceInfos);
+      return this.weightedMedian(filteredPrices);
     } else {
-      // Original average calculation
-      return priceInfos.reduce((a, b) => a + b.price, 0) / priceInfos.length;
+      return filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
     }
   }
 
   private weightedMedian(prices: PriceInfo[]): number {
     if (prices.length === 0) {
       throw new Error("Price list cannot be empty.");
+    }
+
+    // If there's only one price, return it directly
+    if (prices.length === 1) {
+      this.logger.debug(`Single price available, using: ${prices[0].price} from ${prices[0].exchange}`);
+      return prices[0].price;
     }
 
     prices.sort((a, b) => a.time - b.time);
@@ -305,6 +313,31 @@ export class PredictorFeed implements BaseDataFeed {
       this.logger.error("Error parsing JSON config:", err);
       throw err;
     }
+  }
+
+  private removeOutliers(prices: PriceInfo[], sigmas: number = 2): PriceInfo[] {
+    // Need at least 3 prices for meaningful outlier detection
+    if (prices.length < 3) return prices;
+
+    // Calculate mean
+    const mean = prices.reduce((sum, p) => sum + p.price, 0) / prices.length;
+
+    // Calculate standard deviation
+    const squaredDiffs = prices.map(p => Math.pow(p.price - mean, 2));
+    const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / prices.length;
+    const stdDev = Math.sqrt(variance);
+
+    // Filter out prices more than N standard deviations from mean
+    const threshold = sigmas * stdDev;
+    const filteredPrices = prices.filter(p => Math.abs(p.price - mean) <= threshold);
+
+    if (filteredPrices.length < prices.length) {
+      this.logger.debug(`Removed ${prices.length - filteredPrices.length} outliers using ${sigmas}-sigma rule`);
+      this.logger.debug(`Original prices: ${prices.map(p => `${p.price} (${p.exchange})`).join(", ")}`);
+      this.logger.debug(`Filtered prices: ${filteredPrices.map(p => `${p.price} (${p.exchange})`).join(", ")}`);
+    }
+
+    return filteredPrices;
   }
 }
 
