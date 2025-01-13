@@ -282,16 +282,29 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Calculate weights
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
+    this.logger.log(`Total volume across exchanges: ${totalVolume}`);
+
     const weights = prices.map(data => {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
+
+      this.logger.log(`Exchange: ${data.exchange}`);
+      this.logger.log(`  Price: ${data.price}`);
+      this.logger.log(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
+      this.logger.log(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
+
       return timeWeight * 0.7 + volumeWeight * 0.3;
     });
 
     // Normalize weights
     const weightSum = weights.reduce((sum, w) => sum + w, 0);
     const normalizedWeights = weights.map(w => w / weightSum);
+
+    this.logger.log("Final normalized weights:");
+    prices.forEach((price, i) => {
+      this.logger.log(`  ${price.exchange}: ${normalizedWeights[i].toFixed(4)} (price: ${price.price})`);
+    });
 
     // Calculate cumulative weights and find median
     let cumulativeWeight = 0;
@@ -301,6 +314,8 @@ export class PredictorFeed implements BaseDataFeed {
       const prevWeight = cumulativeWeight;
       cumulativeWeight += normalizedWeights[i];
 
+      this.logger.log(`Cumulative weight after ${prices[i].exchange}: ${cumulativeWeight.toFixed(4)}`);
+
       if (prevWeight <= midpoint && cumulativeWeight >= midpoint) {
         // If we're between two prices, interpolate
         if (i < prices.length - 1) {
@@ -309,15 +324,24 @@ export class PredictorFeed implements BaseDataFeed {
           const fraction = (midpoint - prevWeight) / normalizedWeights[i];
           const weightedPrice = leftPrice + (rightPrice - leftPrice) * fraction;
 
-          this.logger.debug(`Interpolated weighted median between ${prices[i].exchange} and ${prices[i + 1].exchange}`);
+          this.logger.log(`Interpolating between:`);
+          this.logger.log(`  ${prices[i].exchange}: ${leftPrice}`);
+          this.logger.log(`  ${prices[i + 1].exchange}: ${rightPrice}`);
+          this.logger.log(`  Fraction: ${fraction.toFixed(4)}`);
+          this.logger.log(`  Final weighted median: ${weightedPrice}`);
+
           return weightedPrice;
         }
+
+        this.logger.log(`Using exact price from ${prices[i].exchange}: ${prices[i].price}`);
         return prices[i].price;
       }
     }
 
     // Fallback to middle price if something goes wrong
-    return prices[Math.floor(prices.length / 2)].price;
+    const fallbackPrice = prices[Math.floor(prices.length / 2)].price;
+    this.logger.log(`Using fallback middle price: ${fallbackPrice}`);
+    return fallbackPrice;
   }
 
   private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
