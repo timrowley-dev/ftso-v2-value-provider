@@ -2088,12 +2088,24 @@
         "symbol": "FET/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "FET/USDC"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "FET/USDT"
       },
       {
         "exchange": "bingx",
         "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "bitfinex",
+        "symbol": "FET/USD"
       },
       {
         "exchange": "bitfinex",
@@ -2104,11 +2116,107 @@
         "symbol": "FET/USDT"
       },
       {
+        "exchange": "bitrue",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "bitstamp",
+        "symbol": "FET/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "FET/USDT"
       },
       {
+        "exchange": "bybit",
+        "symbol": "FET/USDC"
+      },
+      {
         "exchange": "coinbase",
+        "symbol": "FET/USD"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "FET/USDC"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "FET/USD"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "FET/USDC"
+      },
+      {
+        "exchange": "gemini",
+        "symbol": "FET/USD"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "FET/USD"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "latoken",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "poloniex",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "whitebit",
+        "symbol": "FET/USDT"
+      },
+      {
+        "exchange": "xt",
         "symbol": "FET/USDT"
       }
     ]
