@@ -361,26 +361,44 @@ export class PredictorFeed implements BaseDataFeed {
       return prices[0].price;
     }
 
-    // Sort by price first
+    // First pass: Remove extreme outliers (e.g. >10% from trimmed mean)
+    const trimmedPrices = [...prices].sort((a, b) => a.price - b.price);
+    const trimAmount = Math.floor(prices.length * 0.1); // 10% trim
+    const trimmedMean =
+      trimmedPrices.slice(trimAmount, -trimAmount).reduce((sum, p) => sum + p.price, 0) /
+      (prices.length - 2 * trimAmount);
+
+    prices = prices.filter(p => {
+      const deviation = Math.abs(p.price - trimmedMean) / trimmedMean;
+      if (deviation > 0.1) {
+        // 10% threshold
+        this.logger.debug(
+          `Removing extreme outlier: ${p.exchange} (${p.price}, ${(deviation * 100).toFixed(2)}% from mean)`
+        );
+        return false;
+      }
+      return true;
+    });
+
+    // Sort remaining prices
     prices.sort((a, b) => a.price - b.price);
     const now = Date.now();
 
-    // Calculate weights
+    // Calculate weights with adjusted formula
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
-    this.logger.log(`Total volume across exchanges: ${totalVolume}`);
-
     const weights = prices.map(data => {
       const timeDifference = now - data.time;
-      const timeWeight = Math.exp(-lambda * timeDifference);
-      const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
+      // Exponential decay with more aggressive time penalty
+      const timeWeight = Math.exp(-lambda * Math.pow(timeDifference, 1.2));
 
-      this.logger.log(`Exchange: ${data.exchange}`);
-      this.logger.log(`  Price: ${data.price} (Source: ${data.source || "websocket"})`);
-      this.logger.log(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
-      this.logger.log(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
+      // Volume weight with diminishing returns
+      const volumeWeight = Math.log1p(data.volume) / Math.log1p(totalVolume);
 
-      // Change weight ratio to 95/5
-      return timeWeight * 0.95 + volumeWeight * 0.05;
+      // Add source reliability weight
+      const sourceWeight = data.source === "spot" ? 1.0 : 0.8;
+
+      // Combine weights with adjusted ratios
+      return timeWeight * 0.7 + volumeWeight * 0.2 + sourceWeight * 0.1;
     });
 
     // Normalize weights
