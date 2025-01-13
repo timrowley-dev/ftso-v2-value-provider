@@ -352,7 +352,7 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private weightedMedian(prices: PriceInfo[]): number {
-    if (!prices || prices.length === 0) {
+    if (prices.length === 0) {
       throw new Error("Price list cannot be empty.");
     }
 
@@ -361,78 +361,94 @@ export class PredictorFeed implements BaseDataFeed {
       return prices[0].price;
     }
 
-    // Sort prices and log them for debugging
-    prices.sort((a, b) => a.price - b.price);
-    this.logger.debug(`Sorted prices before median calculation:`);
-    prices.forEach(p => {
-      this.logger.debug(`  ${p.exchange}: ${p.price}`);
+    // First pass: Remove extreme outliers (e.g. >10% from trimmed mean)
+    const trimmedPrices = [...prices].sort((a, b) => a.price - b.price);
+    const trimAmount = Math.floor(prices.length * 0.1); // 10% trim
+    const trimmedMean =
+      trimmedPrices.slice(trimAmount, -trimAmount).reduce((sum, p) => sum + p.price, 0) /
+      (prices.length - 2 * trimAmount);
+
+    prices = prices.filter(p => {
+      const deviation = Math.abs(p.price - trimmedMean) / trimmedMean;
+      if (deviation > 0.1) {
+        // 10% threshold
+        this.logger.debug(
+          `Removing extreme outlier: ${p.exchange} (${p.price}, ${(deviation * 100).toFixed(2)}% from mean)`
+        );
+        return false;
+      }
+      return true;
     });
 
+    // Sort remaining prices
+    prices.sort((a, b) => a.price - b.price);
     const now = Date.now();
+
+    // Calculate weights with adjusted formula
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
-
-    // Calculate and log weights
     const weights = prices.map(data => {
-      if (!data || typeof data.price !== "number") {
-        this.logger.error(`Invalid price data: ${JSON.stringify(data)}`);
-        return 0; // Return 0 weight for invalid data
-      }
-
       const timeDifference = now - data.time;
+      // Exponential decay with more aggressive time penalty
       const timeWeight = Math.exp(-lambda * Math.pow(timeDifference, 1.2));
+
+      // Volume weight with diminishing returns
       const volumeWeight = Math.log1p(data.volume) / Math.log1p(totalVolume);
+
+      // Add source reliability weight
       const sourceWeight = data.source === "spot" ? 1.0 : 0.8;
 
+      // Combine weights with adjusted ratios
       return timeWeight * 0.7 + volumeWeight * 0.2 + sourceWeight * 0.1;
     });
 
-    // Filter out any entries with 0 weight
-    const validPrices = prices.filter((_, i) => weights[i] > 0);
-    const validWeights = weights.filter(w => w > 0);
+    // Normalize weights
+    const weightSum = weights.reduce((sum, w) => sum + w, 0);
+    const normalizedWeights = weights.map(w => w / weightSum);
 
-    if (validPrices.length === 0) {
-      throw new Error("No valid prices with non-zero weights found");
-    }
-
-    // Normalize remaining weights
-    const weightSum = validWeights.reduce((sum, w) => sum + w, 0);
-    const normalizedWeights = validWeights.map(w => w / weightSum);
-
-    // Log final weights for debugging
-    this.logger.debug("Final normalized weights:");
-    validPrices.forEach((price, i) => {
-      this.logger.debug(
+    this.logger.log("Final normalized weights:");
+    prices.forEach((price, i) => {
+      this.logger.log(
         `  ${price.exchange}: ${normalizedWeights[i].toFixed(4)} ` +
           `(price: ${price.price}, source: ${price.source || "websocket"})`
       );
     });
 
-    // Calculate weighted median
+    // Calculate cumulative weights and find median
     let cumulativeWeight = 0;
     const midpoint = 0.5;
 
-    for (let i = 0; i < validPrices.length; i++) {
+    for (let i = 0; i < prices.length; i++) {
       const prevWeight = cumulativeWeight;
       cumulativeWeight += normalizedWeights[i];
 
+      this.logger.log(`Cumulative weight after ${prices[i].exchange}: ${cumulativeWeight.toFixed(4)}`);
+
       if (prevWeight <= midpoint && cumulativeWeight >= midpoint) {
-        if (i < validPrices.length - 1) {
-          const leftPrice = validPrices[i].price;
-          const rightPrice = validPrices[i + 1].price;
+        // If we're between two prices, interpolate
+        if (i < prices.length - 1) {
+          const leftPrice = prices[i].price;
+          const rightPrice = prices[i + 1].price;
           const fraction = (midpoint - prevWeight) / normalizedWeights[i];
           const weightedPrice = leftPrice + (rightPrice - leftPrice) * fraction;
 
-          this.logger.debug(`Interpolating between ${validPrices[i].exchange} and ${validPrices[i + 1].exchange}`);
+          this.logger.log(`Interpolating between:`);
+          this.logger.log(`  ${prices[i].exchange}: ${leftPrice}`);
+          this.logger.log(`  ${prices[i + 1].exchange}: ${rightPrice}`);
+          this.logger.log(`  Fraction: ${fraction.toFixed(4)}`);
+          this.logger.log(`  Final weighted median: ${weightedPrice}`);
+
           return weightedPrice;
         }
-        return validPrices[i].price;
+
+        this.logger.log(`Using exact price from ${prices[i].exchange}: ${prices[i].price}`);
+        return prices[i].price;
       }
     }
 
-    // Fallback to middle price
-    const middleIndex = Math.floor(validPrices.length / 2);
-    this.logger.debug(`Using fallback middle price from ${validPrices[middleIndex].exchange}`);
-    return validPrices[middleIndex].price;
+    // Fallback to middle price if something goes wrong
+    const fallbackPrice = prices[Math.floor(prices.length / 2)].price;
+    this.logger.log(`Using fallback middle price: ${fallbackPrice}`);
+    return fallbackPrice;
   }
 
   private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
