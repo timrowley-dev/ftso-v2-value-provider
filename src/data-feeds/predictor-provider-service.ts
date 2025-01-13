@@ -44,10 +44,6 @@ interface PredictionResponse {
   seconds_remaining: number;
 }
 
-interface SpotPriceInfo extends PriceInfo {
-  source: "trade" | "spot";
-}
-
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
 
 export class PredictorFeed implements BaseDataFeed {
@@ -201,36 +197,43 @@ export class PredictorFeed implements BaseDataFeed {
     while (isRunning) {
       try {
         for (const marketId of marketIds) {
-          // Fetch both trades and ticker
           const [trades, ticker] = await Promise.all([
             retry(async () => exchange.fetchTrades(marketId), RETRY_BACKOFF_MS).catch(() => []),
             retry(async () => exchange.fetchTicker(marketId), RETRY_BACKOFF_MS).catch(() => null),
           ]);
 
-          const prices = this.prices.get(marketId) || new Map<string, SpotPriceInfo>();
+          const prices = this.prices.get(marketId) || new Map<string, PriceInfo>();
 
-          // Update from trades if available
-          if (trades.length > 0) {
-            const lastTrade = trades[trades.length - 1];
+          // Update from ticker first (base price)
+          if (ticker && ticker.last) {
+            this.logger.debug(
+              `[${exchangeName}] ${marketId} Spot price: ${ticker.last} ` +
+                `(volume: ${ticker.baseVolume || 0}, timestamp: ${new Date(ticker.timestamp || Date.now()).toISOString()})`
+            );
             prices.set(exchangeName, {
-              price: lastTrade.price,
-              time: lastTrade.timestamp,
+              price: ticker.last,
+              time: ticker.timestamp || Date.now(),
               exchange: exchangeName,
-              volume: lastTrade.amount || 0,
-              source: "trade",
+              volume: ticker.baseVolume || 0,
+              source: "spot",
             });
           }
 
-          // Update from ticker if available and more recent than trade
-          if (ticker) {
-            const existingPrice = prices.get(exchangeName);
-            if (!existingPrice || ticker.timestamp > existingPrice.time) {
+          // Override with trade data if available and more recent
+          if (trades.length > 0) {
+            const lastTrade = trades[trades.length - 1];
+            if (!ticker || lastTrade.timestamp > ticker.timestamp) {
+              this.logger.debug(
+                `[${exchangeName}] ${marketId} Trade price: ${lastTrade.price} ` +
+                  `(volume: ${lastTrade.amount || 0}, timestamp: ${new Date(lastTrade.timestamp || Date.now()).toISOString()}) ` +
+                  `[Overriding spot price as more recent]`
+              );
               prices.set(exchangeName, {
-                price: ticker.last || ticker.close,
-                time: ticker.timestamp,
+                price: lastTrade.price,
+                time: lastTrade.timestamp || Date.now(),
                 exchange: exchangeName,
-                volume: ticker.baseVolume || 0,
-                source: "spot",
+                volume: lastTrade.amount || 0,
+                source: "trade",
               });
             }
           }
