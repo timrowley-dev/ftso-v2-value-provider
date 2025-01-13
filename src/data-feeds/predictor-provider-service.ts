@@ -36,11 +36,16 @@ interface PriceInfo {
   time: number;
   exchange: string;
   volume: number;
+  source?: "trade" | "spot";
 }
 
 interface PredictionResponse {
   prediction: number | null;
   seconds_remaining: number;
+}
+
+interface SpotPriceInfo extends PriceInfo {
+  source: "trade" | "spot";
 }
 
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
@@ -169,8 +174,8 @@ export class PredictorFeed implements BaseDataFeed {
       return;
     }
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    const isRunning = true;
+    while (isRunning) {
       try {
         const trades = await retry(async () => exchange.watchTradesForSymbols(marketIds, null, 100), RETRY_BACKOFF_MS);
         trades.forEach(trade => {
@@ -192,26 +197,50 @@ export class PredictorFeed implements BaseDataFeed {
 
   private async pollTrades(exchange: Exchange, marketIds: string[], exchangeName: string) {
     const POLL_INTERVAL = 10000; // 10 seconds
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    const isRunning = true;
+    while (isRunning) {
       try {
         for (const marketId of marketIds) {
-          const trades = await retry(async () => exchange.fetchTrades(marketId), RETRY_BACKOFF_MS);
+          // Fetch both trades and ticker
+          const [trades, ticker] = await Promise.all([
+            retry(async () => exchange.fetchTrades(marketId), RETRY_BACKOFF_MS).catch(() => []),
+            retry(async () => exchange.fetchTicker(marketId), RETRY_BACKOFF_MS).catch(() => null),
+          ]);
+
+          const prices = this.prices.get(marketId) || new Map<string, SpotPriceInfo>();
+
+          // Update from trades if available
           if (trades.length > 0) {
             const lastTrade = trades[trades.length - 1];
-            const prices = this.prices.get(lastTrade.symbol) || new Map<string, PriceInfo>();
             prices.set(exchangeName, {
               price: lastTrade.price,
               time: lastTrade.timestamp,
               exchange: exchangeName,
               volume: lastTrade.amount || 0,
+              source: "trade",
             });
-            this.prices.set(lastTrade.symbol, prices);
+          }
+
+          // Update from ticker if available and more recent than trade
+          if (ticker) {
+            const existingPrice = prices.get(exchangeName);
+            if (!existingPrice || ticker.timestamp > existingPrice.time) {
+              prices.set(exchangeName, {
+                price: ticker.last || ticker.close,
+                time: ticker.timestamp,
+                exchange: exchangeName,
+                volume: ticker.baseVolume || 0,
+                source: "spot",
+              });
+            }
+          }
+
+          if (prices.size > 0) {
+            this.prices.set(marketId, prices);
           }
         }
       } catch (e) {
-        this.logger.warn(`Failed to poll trades for ${exchangeName}: ${e}`);
+        this.logger.warn(`Failed to poll data for ${exchangeName}: ${e}`);
       }
 
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
@@ -248,9 +277,13 @@ export class PredictorFeed implements BaseDataFeed {
         continue;
       }
 
-      // Check if price is too old (e.g., > 5 minutes)
-      if (Date.now() - info.time > 5 * 60 * 1000) {
-        inactiveExchanges.set(source.exchange, `Stale data (${Math.round((Date.now() - info.time) / 1000)}s old)`);
+      // Adjust stale data check based on source
+      const staleness = info.source === "trade" ? 5 * 60 * 1000 : 15 * 60 * 1000; // 5 mins for trades, 15 for spot
+      if (Date.now() - info.time > staleness) {
+        inactiveExchanges.set(
+          source.exchange,
+          `Stale ${info.source} data (${Math.round((Date.now() - info.time) / 1000)}s old)`
+        );
         continue;
       }
 
