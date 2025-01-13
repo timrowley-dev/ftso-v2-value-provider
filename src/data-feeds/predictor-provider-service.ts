@@ -1,5 +1,5 @@
 import { Logger } from "@nestjs/common";
-import ccxt, { Exchange } from "ccxt";
+import ccxt, { Exchange, Ticker } from "ccxt";
 import { readFileSync } from "fs";
 import { FeedId, FeedValueData } from "../dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
@@ -163,8 +163,18 @@ export class PredictorFeed implements BaseDataFeed {
   private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
     this.logger.log(`Watching ${marketIds} on exchange ${exchangeName}`);
 
-    // Always start polling for spot prices
-    void this.pollTrades(exchange, marketIds, exchangeName);
+    // Get the correct market symbol format for each exchange
+    const formattedMarketIds = marketIds.map(marketId => {
+      const market = exchange.markets[marketId];
+      return market ? market.id : marketId;
+    });
+
+    // Always start polling for spot prices if supported
+    if (exchange.has["fetchTicker"]) {
+      void this.pollTrades(exchange, formattedMarketIds, exchangeName);
+    } else {
+      this.logger.warn(`Exchange ${exchangeName} does not support fetchTicker, skipping spot price polling`);
+    }
 
     // Optionally collect trades as backup if websocket is available
     if ("watchTradesForSymbols" in exchange) {
@@ -206,30 +216,30 @@ export class PredictorFeed implements BaseDataFeed {
 
     while (isRunning) {
       try {
+        // Try batch fetching first
+        if (exchange.has["fetchTickers"]) {
+          try {
+            const tickers = await exchange.fetchTickers(marketIds);
+            for (const [symbol, ticker] of Object.entries(tickers)) {
+              if (ticker && (ticker.last || ticker.close)) {
+                this.updateSpotPrice(symbol, ticker, exchangeName);
+              }
+            }
+            continue; // Skip individual fetches if batch succeeded
+          } catch (e) {
+            this.logger.debug(
+              `Batch ticker fetch failed for ${exchangeName}, falling back to individual: ${e.message}`
+            );
+          }
+        }
+
+        // Fall back to individual fetches
         for (const marketId of marketIds) {
           try {
             this.logger.debug(`Fetching spot price for ${marketId} on ${exchangeName}`);
             const ticker = await exchange.fetchTicker(marketId);
-
             if (ticker && (ticker.last || ticker.close)) {
-              const price = ticker.last || ticker.close;
-              const prices = this.prices.get(marketId) || new Map<string, PriceInfo>();
-
-              prices.set(exchangeName, {
-                price: price,
-                time: ticker.timestamp || Date.now(),
-                exchange: exchangeName,
-                volume: ticker.baseVolume || 0,
-                source: "spot",
-              });
-
-              this.prices.set(marketId, prices);
-
-              this.logger.debug(
-                `[${exchangeName}] ${marketId} Spot price updated: ${price} ` + `(volume: ${ticker.baseVolume || 0})`
-              );
-            } else {
-              this.logger.debug(`No valid spot price found for ${marketId} on ${exchangeName}`);
+              this.updateSpotPrice(marketId, ticker, exchangeName);
             }
           } catch (e) {
             this.logger.warn(`Failed to fetch ticker for ${marketId} on ${exchangeName}: ${e.message}`);
@@ -241,6 +251,24 @@ export class PredictorFeed implements BaseDataFeed {
 
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
     }
+  }
+
+  private updateSpotPrice(symbol: string, ticker: Ticker, exchangeName: string) {
+    const price = ticker.last || ticker.close;
+    const prices = this.prices.get(symbol) || new Map<string, PriceInfo>();
+
+    prices.set(exchangeName, {
+      price: price,
+      time: ticker.timestamp || Date.now(),
+      exchange: exchangeName,
+      volume: ticker.baseVolume || 0,
+      source: "spot", // Explicitly mark as spot price
+    });
+
+    this.prices.set(symbol, prices);
+    this.logger.debug(
+      `[${exchangeName}] ${symbol} Spot price updated: ${price} ` + `(volume: ${ticker.baseVolume || 0})`
+    );
   }
 
   private async getFeedPrice(feedId: FeedId, votingRoundId: number): Promise<number> {
