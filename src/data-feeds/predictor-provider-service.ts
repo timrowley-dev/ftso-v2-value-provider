@@ -37,6 +37,7 @@ interface PriceInfo {
   exchange: string;
   volume: number;
   source?: "trade" | "spot";
+  quoteAsset?: "USDT" | "USDC";
 }
 
 interface PredictionResponse {
@@ -199,6 +200,7 @@ export class PredictorFeed implements BaseDataFeed {
               exchange: exchangeName,
               volume: trade.amount || 0,
               source: "trade",
+              quoteAsset: trade.symbol.endsWith("USDT") ? "USDT" : trade.symbol.endsWith("USDC") ? "USDC" : undefined,
             });
             this.prices.set(trade.symbol, prices);
           }
@@ -263,12 +265,14 @@ export class PredictorFeed implements BaseDataFeed {
       time: ticker.timestamp || Date.now(),
       exchange: exchangeName,
       volume: ticker.baseVolume || 0,
-      source: "spot", // Explicitly mark as spot price
+      source: "spot",
+      quoteAsset: symbol.endsWith("USDT") ? "USDT" : symbol.endsWith("USDC") ? "USDC" : undefined,
     });
 
     this.prices.set(symbol, prices);
     this.logger.debug(
-      `[${exchangeName}] ${symbol} Spot price updated: ${price} ` + `(volume: ${ticker.baseVolume || 0})`
+      `[${exchangeName}] ${symbol} Spot price updated: ${price} ` +
+        `(volume: ${ticker.baseVolume || 0}, quote: ${symbol.endsWith("USDT") ? "USDT" : symbol.endsWith("USDC") ? "USDC" : "other"})`
     );
   }
 
