@@ -340,19 +340,24 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    // Apply outlier removal
-    const filteredPrices = this.removeOutliers(priceInfos);
+    // Deduplicate prices by exchange, preferring spot prices over trade prices
+    const dedupedPrices = new Map<string, PriceInfo>();
+    priceInfos.forEach(info => {
+      const existing = dedupedPrices.get(info.exchange);
+      if (!existing || (info.source === "spot" && existing.source !== "spot")) {
+        dedupedPrices.set(info.exchange, info);
+      }
+    });
 
-    // Use selected calculation method
+    const filteredPrices = this.removeOutliers(Array.from(dedupedPrices.values()));
+
     if (PRICE_CALCULATION_METHOD === "weighted-median") {
       return this.weightedMedian(filteredPrices);
     } else {
-      // Add logging for average calculation
+      // Simple average calculation
       this.logger.log("Using simple average calculation:");
       filteredPrices.forEach(price => {
-        this.logger.log(
-          `  ${price.exchange}: ${price.price} (Source: ${price.source || "websocket"}, Volume: ${price.volume})`
-        );
+        this.logger.log(`  ${price.exchange}: ${price.price} (Source: ${price.source}, Volume: ${price.volume})`);
       });
       const average = filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
       this.logger.log(`Final average price: ${average}`);
@@ -494,7 +499,7 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
-  private removeOutliers(prices: PriceInfo[], sigmas: number = 2): PriceInfo[] {
+  private removeOutliers(prices: PriceInfo[], sigmas: number = 1.5): PriceInfo[] {
     // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
