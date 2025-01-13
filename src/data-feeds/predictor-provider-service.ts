@@ -232,13 +232,29 @@ export class PredictorFeed implements BaseDataFeed {
 
     const priceInfos: PriceInfo[] = [];
     let usdtToUsd = undefined;
-    const activeExchanges = new Set<string>(); // Track unique exchanges
+    const activeExchanges = new Set<string>();
+    const inactiveExchanges = new Map<string, string>(); // Track inactive exchanges and reasons
 
     for (const source of config.sources) {
-      const info = this.prices.get(source.symbol)?.get(source.exchange);
-      if (info === undefined) continue;
+      const prices = this.prices.get(source.symbol);
+      if (!prices) {
+        inactiveExchanges.set(source.exchange, "No price data received");
+        continue;
+      }
 
-      activeExchanges.add(source.exchange); // Add to tracking set
+      const info = prices.get(source.exchange);
+      if (info === undefined) {
+        inactiveExchanges.set(source.exchange, "Exchange initialized but no recent trades");
+        continue;
+      }
+
+      // Check if price is too old (e.g., > 5 minutes)
+      if (Date.now() - info.time > 5 * 60 * 1000) {
+        inactiveExchanges.set(source.exchange, `Stale data (${Math.round((Date.now() - info.time) / 1000)}s old)`);
+        continue;
+      }
+
+      activeExchanges.add(source.exchange);
 
       if (source.symbol.endsWith("USDT")) {
         if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
@@ -253,9 +269,13 @@ export class PredictorFeed implements BaseDataFeed {
       }
     }
 
-    // Log exchange source information
+    // Enhanced logging
     this.logger.log(
-      `${feedId.name} - Active exchanges: ${activeExchanges.size}/${config.sources.length} (${Array.from(activeExchanges).join(", ")})`
+      `${feedId.name} - Exchange status:
+       Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
+       Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
+         .map(([exchange, reason]) => `${exchange} (${reason})`)
+         .join(", ")}`
     );
 
     if (priceInfos.length === 0) {
