@@ -212,6 +212,11 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private async getFeedPrice(feedId: FeedId, votingRoundId: number): Promise<number> {
+    // Add fallback price for USDX
+    if (feedId.name === "USDX/USD") {
+      return 0.9999;
+    }
+
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
     if (!config) {
       this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
