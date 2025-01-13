@@ -70,7 +70,17 @@ export class PredictorFeed implements BaseDataFeed {
     const loadExchanges = [];
     for (const exchangeName of exchangeToSymbols.keys()) {
       try {
-        const exchange: Exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
+        // Try to initialize with CCXT Pro first, fall back to regular CCXT
+        let exchange: Exchange;
+        try {
+          exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
+          this.logger.debug(`Using CCXT Pro for ${exchangeName}`);
+        } catch (e) {
+          // If Pro initialization fails, try regular CCXT
+          exchange = new ccxt[exchangeName]({ newUpdates: true });
+          this.logger.debug(`Falling back to regular CCXT for ${exchangeName}`);
+        }
+
         this.exchangeByName.set(exchangeName, exchange);
         loadExchanges.push([exchangeName, retry(async () => exchange.loadMarkets(), 2, RETRY_BACKOFF_MS, this.logger)]);
       } catch (e) {
@@ -151,6 +161,13 @@ export class PredictorFeed implements BaseDataFeed {
   private async watch(exchange: Exchange, marketIds: string[], exchangeName: string) {
     this.logger.log(`Watching trades for ${marketIds} on exchange ${exchangeName}`);
 
+    // Check if exchange supports websocket
+    if (!("watchTradesForSymbols" in exchange)) {
+      this.logger.debug(`Exchange ${exchangeName} doesn't support websocket, using REST polling`);
+      void this.pollTrades(exchange, marketIds, exchangeName);
+      return;
+    }
+
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
@@ -164,6 +181,33 @@ export class PredictorFeed implements BaseDataFeed {
         this.logger.error(`Failed to watch trades for ${exchangeName}: ${e}`);
         return;
       }
+    }
+  }
+
+  private async pollTrades(exchange: Exchange, marketIds: string[], exchangeName: string) {
+    const POLL_INTERVAL = 10000; // 10 seconds
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        for (const marketId of marketIds) {
+          const trades = await retry(async () => exchange.fetchTrades(marketId), RETRY_BACKOFF_MS);
+          if (trades.length > 0) {
+            const lastTrade = trades[trades.length - 1];
+            const prices = this.prices.get(lastTrade.symbol) || new Map<string, PriceInfo>();
+            prices.set(exchangeName, {
+              price: lastTrade.price,
+              time: lastTrade.timestamp,
+              exchange: exchangeName,
+            });
+            this.prices.set(lastTrade.symbol, prices);
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`Failed to poll trades for ${exchangeName}: ${e}`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
     }
   }
 
