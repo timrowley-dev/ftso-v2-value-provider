@@ -389,19 +389,18 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Calculate weights
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
-    this.logger.log(`Total volume across exchanges: ${totalVolume}`);
+    this.logger.debug(`Total volume across exchanges: ${totalVolume}`);
 
     const weights = prices.map(data => {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
 
-      this.logger.log(`Exchange: ${data.exchange}`);
-      this.logger.log(`  Price: ${data.price} (Source: ${data.source || "websocket"})`);
-      this.logger.log(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
-      this.logger.log(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
+      this.logger.debug(`Exchange: ${data.exchange}`);
+      this.logger.debug(`  Price: ${data.price} (Source: ${data.source || "websocket"})`);
+      this.logger.debug(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
+      this.logger.debug(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
 
-      // Change weight ratio to 95/5
       return timeWeight * 0.95 + volumeWeight * 0.05;
     });
 
@@ -409,9 +408,9 @@ export class PredictorFeed implements BaseDataFeed {
     const weightSum = weights.reduce((sum, w) => sum + w, 0);
     const normalizedWeights = weights.map(w => w / weightSum);
 
-    this.logger.log("Final normalized weights:");
+    this.logger.debug("Final normalized weights:");
     prices.forEach((price, i) => {
-      this.logger.log(
+      this.logger.debug(
         `  ${price.exchange}: ${normalizedWeights[i].toFixed(4)} ` +
           `(price: ${price.price}, source: ${price.source || "websocket"})`
       );
@@ -425,7 +424,7 @@ export class PredictorFeed implements BaseDataFeed {
       const prevWeight = cumulativeWeight;
       cumulativeWeight += normalizedWeights[i];
 
-      this.logger.log(`Cumulative weight after ${prices[i].exchange}: ${cumulativeWeight.toFixed(4)}`);
+      this.logger.debug(`Cumulative weight after ${prices[i].exchange}: ${cumulativeWeight.toFixed(4)}`);
 
       if (prevWeight <= midpoint && cumulativeWeight >= midpoint) {
         // If we're between two prices, interpolate
@@ -435,23 +434,23 @@ export class PredictorFeed implements BaseDataFeed {
           const fraction = (midpoint - prevWeight) / normalizedWeights[i];
           const weightedPrice = leftPrice + (rightPrice - leftPrice) * fraction;
 
-          this.logger.log(`Interpolating between:`);
-          this.logger.log(`  ${prices[i].exchange}: ${leftPrice}`);
-          this.logger.log(`  ${prices[i + 1].exchange}: ${rightPrice}`);
-          this.logger.log(`  Fraction: ${fraction.toFixed(4)}`);
-          this.logger.log(`  Final weighted median: ${weightedPrice}`);
+          this.logger.debug(`Interpolating between:`);
+          this.logger.debug(`  ${prices[i].exchange}: ${leftPrice}`);
+          this.logger.debug(`  ${prices[i + 1].exchange}: ${rightPrice}`);
+          this.logger.debug(`  Fraction: ${fraction.toFixed(4)}`);
+          this.logger.debug(`  Final weighted median: ${weightedPrice}`);
 
           return weightedPrice;
         }
 
-        this.logger.log(`Using exact price from ${prices[i].exchange}: ${prices[i].price}`);
+        this.logger.debug(`Using exact price from ${prices[i].exchange}: ${prices[i].price}`);
         return prices[i].price;
       }
     }
 
     // Fallback to middle price if something goes wrong
     const fallbackPrice = prices[Math.floor(prices.length / 2)].price;
-    this.logger.log(`Using fallback middle price: ${fallbackPrice}`);
+    this.logger.debug(`Using fallback middle price: ${fallbackPrice}`);
     return fallbackPrice;
   }
 
