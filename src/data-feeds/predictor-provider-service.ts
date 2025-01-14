@@ -353,14 +353,14 @@ export class PredictorFeed implements BaseDataFeed {
     for (const info of priceInfos) {
       if (info.quoteAsset === "USDT") {
         const usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
-        this.logSymbolOnce(feedId.name, `Converting USDT price using rate: ${usdtPrice}`, votingRoundId);
+        this.logger.log(`Converting USDT price using calculated rate: ${usdtPrice}`);
         convertedPrices.push({
           ...info,
           price: info.price * usdtPrice,
         });
       } else if (info.quoteAsset === "USDC") {
         const usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
-        this.logSymbolOnce(feedId.name, `Converting USDC price using rate: ${usdcPrice}`, votingRoundId);
+        this.logger.log(`Converting USDC price using calculated rate: ${usdcPrice}`);
         convertedPrices.push({
           ...info,
           price: info.price * usdcPrice,
@@ -390,21 +390,31 @@ export class PredictorFeed implements BaseDataFeed {
     prices.sort((a, b) => a.price - b.price);
     const now = Date.now();
 
+    // Log summary of input prices once
+    this.logger.debug(
+      `Processing ${prices.length} prices:\n` +
+        prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
+    );
+
     // Calculate weights
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
-    this.logger.debug(`Total volume across exchanges: ${totalVolume}`);
+    this.logger.debug(`Total volume: ${totalVolume}`);
 
+    // Calculate and log weights in a single block
     const weights = prices.map(data => {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
+      const combinedWeight = timeWeight * 0.95 + volumeWeight * 0.05;
 
-      this.logger.debug(`Exchange: ${data.exchange}`);
-      this.logger.debug(`  Price: ${data.price} (Source: ${data.source || "websocket"})`);
-      this.logger.debug(`  Time weight: ${timeWeight.toFixed(4)} (${timeDifference}ms old)`);
-      this.logger.debug(`  Volume weight: ${volumeWeight.toFixed(4)} (${data.volume} volume)`);
+      this.logger.debug(
+        `${data.exchange.padEnd(10)}: ` +
+          `price=${data.price.toFixed(6)} ` +
+          `weight=${combinedWeight.toFixed(4)} ` +
+          `(time=${timeWeight.toFixed(4)}, vol=${volumeWeight.toFixed(4)})`
+      );
 
-      return timeWeight * 0.95 + volumeWeight * 0.05;
+      return combinedWeight;
     });
 
     // Normalize weights
@@ -442,6 +452,14 @@ export class PredictorFeed implements BaseDataFeed {
           this.logger.debug(`  ${prices[i + 1].exchange}: ${rightPrice}`);
           this.logger.debug(`  Fraction: ${fraction.toFixed(4)}`);
           this.logger.debug(`  Final weighted median: ${weightedPrice}`);
+
+          // Log final result more clearly
+          this.logger.debug(
+            `Selected median between:\n` +
+              `  ${prices[i].exchange}: ${prices[i].price}\n` +
+              `  ${prices[i + 1].exchange}: ${prices[i + 1].price}\n` +
+              `Final weighted median: ${weightedPrice} (interpolation: ${fraction.toFixed(4)})`
+          );
 
           return weightedPrice;
         }
@@ -536,28 +554,6 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     return filteredPrices;
-  }
-
-  // Update helper method to be round-aware
-  private logSymbolOnce(symbol: string, message: string, roundId: number) {
-    const loggedSymbols = this.loggedSymbolsPerRound.get(roundId) || new Set<string>();
-    if (!loggedSymbols.has(symbol)) {
-      this.logger.debug(`[Round ${roundId}][${symbol}] ${message}`);
-      loggedSymbols.add(symbol);
-      this.loggedSymbolsPerRound.set(roundId, loggedSymbols);
-    }
-  }
-
-  // Optional: Add cleanup method to prevent memory leaks
-  private cleanupOldRounds() {
-    const currentTime = Date.now();
-    const oldRounds = Array.from(this.loggedSymbolsPerRound.keys()).filter(
-      roundId => currentTime - roundId * 5000 > 24 * 60 * 60 * 1000
-    ); // Clean rounds older than 24h
-
-    oldRounds.forEach(roundId => {
-      this.loggedSymbolsPerRound.delete(roundId);
-    });
   }
 }
 
