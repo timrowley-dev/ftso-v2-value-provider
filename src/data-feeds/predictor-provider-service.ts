@@ -289,7 +289,11 @@ export class PredictorFeed implements BaseDataFeed {
     skipStablecoinConversion: boolean = false
   ): Promise<number> {
     const symbol = feedId.name;
-    this.logger.debug(`Processing feed: ${symbol}`);
+    const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD";
+
+    if (!isStablecoin) {
+      this.logger.debug(`Processing feed: ${symbol}`);
+    }
 
     if (feedId.name === "USDX/USD") {
       this.logger.log(`Using base USDX/USD price: 0.9999`);
@@ -333,14 +337,16 @@ export class PredictorFeed implements BaseDataFeed {
       priceInfos.push(info);
     }
 
-    // Enhanced logging for all feeds
-    this.logger.log(
-      `${feedId.name} - Exchange status:
-         Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
-         Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
-           .map(([exchange, reason]) => `${exchange} (${reason})`)
-           .join(", ")}`
-    );
+    // Modified logging for exchange status
+    if (!isStablecoin) {
+      this.logger.log(
+        `${feedId.name} - Exchange status:
+             Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
+             Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
+               .map(([exchange, reason]) => `${exchange} (${reason})`)
+               .join(", ")}`
+      );
+    }
 
     if (priceInfos.length === 0) {
       this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
@@ -348,15 +354,14 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     // For stablecoin feeds or when skipping conversion, use raw prices
-    if (feedId.name === "USDT/USD" || feedId.name === "USDC/USD" || skipStablecoinConversion) {
+    if (isStablecoin || skipStablecoinConversion) {
       const filteredPrices = this.removeOutliers(priceInfos);
       const price =
         PRICE_CALCULATION_METHOD === "weighted-median"
-          ? this.weightedMedian(filteredPrices, symbol)
+          ? this.weightedMedian(filteredPrices, symbol, isStablecoin) // Pass isStablecoin flag
           : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
 
-      // Cache stablecoin rates
-      if ((feedId.name === "USDT/USD" || feedId.name === "USDC/USD") && !skipStablecoinConversion) {
+      if (isStablecoin && !skipStablecoinConversion) {
         this.stablecoinRateCache.set(feedId.name, {
           rate: price,
           timestamp: Date.now(),
@@ -411,15 +416,17 @@ export class PredictorFeed implements BaseDataFeed {
       : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
   }
 
-  private weightedMedian(prices: PriceInfo[], symbol?: string): number {
+  private weightedMedian(prices: PriceInfo[], symbol?: string, isStablecoin: boolean = false): number {
     if (prices.length === 0) {
       throw new Error("Price list cannot be empty.");
     }
 
     if (prices.length === 1) {
-      this.logger.debug(
-        `[${symbol || "UNKNOWN"}] Single price available, using: ${prices[0].price} from ${prices[0].exchange}`
-      );
+      if (!isStablecoin) {
+        this.logger.debug(
+          `[${symbol || "UNKNOWN"}] Single price available, using: ${prices[0].price} from ${prices[0].exchange}`
+        );
+      }
       return prices[0].price;
     }
 
@@ -427,11 +434,15 @@ export class PredictorFeed implements BaseDataFeed {
     prices.sort((a, b) => a.price - b.price);
     const now = Date.now();
 
-    // Log summary of input prices once
-    this.logger.debug(
-      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
-        prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
-    );
+    // Modified logging
+    if (!isStablecoin) {
+      this.logger.debug(
+        `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
+          prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
+      );
+
+      // ... keep other detailed logging for non-stablecoin pairs ...
+    }
 
     // Calculate weights
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
