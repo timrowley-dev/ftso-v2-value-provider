@@ -282,6 +282,14 @@ export class PredictorFeed implements BaseDataFeed {
       return 0.9999;
     }
 
+    // Add base cases for USDT and USDC to prevent infinite recursion
+    if (feedId.name === "USDT/USD") {
+      return 1.0; // Or use a more sophisticated base price for USDT
+    }
+    if (feedId.name === "USDC/USD") {
+      return 1.0; // Or use a more sophisticated base price for USDC
+    }
+
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
     if (!config) {
       this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
