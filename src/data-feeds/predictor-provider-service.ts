@@ -61,6 +61,10 @@ export class PredictorFeed implements BaseDataFeed {
   // Track symbols per round
   private loggedSymbolsPerRound = new Map<number, Set<string>>();
 
+  // Add at class level
+  private readonly stablecoinRateCache = new Map<string, { rate: number; timestamp: number }>();
+  private readonly CACHE_TTL_MS = 5000; // 5 second cache
+
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -284,6 +288,9 @@ export class PredictorFeed implements BaseDataFeed {
     votingRoundId: number,
     skipStablecoinConversion: boolean = false
   ): Promise<number> {
+    const symbol = feedId.name;
+    this.logger.debug(`Processing feed: ${symbol}`);
+
     if (feedId.name === "USDX/USD") {
       this.logger.log(`Using base USDX/USD price: 0.9999`);
       return 0.9999;
@@ -343,24 +350,52 @@ export class PredictorFeed implements BaseDataFeed {
     // For stablecoin feeds or when skipping conversion, use raw prices
     if (feedId.name === "USDT/USD" || feedId.name === "USDC/USD" || skipStablecoinConversion) {
       const filteredPrices = this.removeOutliers(priceInfos);
-      return PRICE_CALCULATION_METHOD === "weighted-median"
-        ? this.weightedMedian(filteredPrices)
-        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+      const price =
+        PRICE_CALCULATION_METHOD === "weighted-median"
+          ? this.weightedMedian(filteredPrices, symbol)
+          : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+
+      // Cache stablecoin rates
+      if ((feedId.name === "USDT/USD" || feedId.name === "USDC/USD") && !skipStablecoinConversion) {
+        this.stablecoinRateCache.set(feedId.name, {
+          rate: price,
+          timestamp: Date.now(),
+        });
+      }
+      return price;
     }
 
     // For other feeds, apply stablecoin conversion if needed
     const convertedPrices: PriceInfo[] = [];
     for (const info of priceInfos) {
       if (info.quoteAsset === "USDT") {
-        const usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
-        this.logger.log(`Converting USDT price using calculated rate: ${usdtPrice}`);
+        const cached = this.stablecoinRateCache.get("USDT/USD");
+        let usdtPrice: number;
+
+        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+          usdtPrice = cached.rate;
+          this.logger.debug(`Using cached USDT rate: ${usdtPrice}`);
+        } else {
+          usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
+          this.logger.debug(`Fetched fresh USDT rate: ${usdtPrice}`);
+        }
+
         convertedPrices.push({
           ...info,
           price: info.price * usdtPrice,
         });
       } else if (info.quoteAsset === "USDC") {
-        const usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
-        this.logger.log(`Converting USDC price using calculated rate: ${usdcPrice}`);
+        const cached = this.stablecoinRateCache.get("USDC/USD");
+        let usdcPrice: number;
+
+        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+          usdcPrice = cached.rate;
+          this.logger.debug(`Using cached USDC rate: ${usdcPrice}`);
+        } else {
+          usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
+          this.logger.debug(`Fetched fresh USDC rate: ${usdcPrice}`);
+        }
+
         convertedPrices.push({
           ...info,
           price: info.price * usdcPrice,
@@ -372,17 +407,19 @@ export class PredictorFeed implements BaseDataFeed {
 
     const filteredPrices = this.removeOutliers(convertedPrices);
     return PRICE_CALCULATION_METHOD === "weighted-median"
-      ? this.weightedMedian(filteredPrices)
+      ? this.weightedMedian(filteredPrices, symbol)
       : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
   }
 
-  private weightedMedian(prices: PriceInfo[]): number {
+  private weightedMedian(prices: PriceInfo[], symbol?: string): number {
     if (prices.length === 0) {
       throw new Error("Price list cannot be empty.");
     }
 
     if (prices.length === 1) {
-      this.logger.debug(`Single price available, using: ${prices[0].price} from ${prices[0].exchange}`);
+      this.logger.debug(
+        `[${symbol || "UNKNOWN"}] Single price available, using: ${prices[0].price} from ${prices[0].exchange}`
+      );
       return prices[0].price;
     }
 
@@ -392,7 +429,7 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Log summary of input prices once
     this.logger.debug(
-      `Processing ${prices.length} prices:\n` +
+      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
         prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
     );
 
