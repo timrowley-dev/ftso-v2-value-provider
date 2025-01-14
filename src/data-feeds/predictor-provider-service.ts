@@ -58,6 +58,9 @@ export class PredictorFeed implements BaseDataFeed {
   /** Symbol -> exchange -> price */
   private readonly prices: Map<string, Map<string, PriceInfo>> = new Map();
 
+  // Track symbols per round
+  private loggedSymbolsPerRound = new Map<number, Set<string>>();
+
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
@@ -350,14 +353,14 @@ export class PredictorFeed implements BaseDataFeed {
     for (const info of priceInfos) {
       if (info.quoteAsset === "USDT") {
         const usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
-        this.logger.log(`Converting USDT price using calculated rate: ${usdtPrice}`);
+        this.logSymbolOnce(feedId.name, `Converting USDT price using rate: ${usdtPrice}`, votingRoundId);
         convertedPrices.push({
           ...info,
           price: info.price * usdtPrice,
         });
       } else if (info.quoteAsset === "USDC") {
         const usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
-        this.logger.log(`Converting USDC price using calculated rate: ${usdcPrice}`);
+        this.logSymbolOnce(feedId.name, `Converting USDC price using rate: ${usdcPrice}`, votingRoundId);
         convertedPrices.push({
           ...info,
           price: info.price * usdcPrice,
@@ -533,6 +536,28 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     return filteredPrices;
+  }
+
+  // Update helper method to be round-aware
+  private logSymbolOnce(symbol: string, message: string, roundId: number) {
+    const loggedSymbols = this.loggedSymbolsPerRound.get(roundId) || new Set<string>();
+    if (!loggedSymbols.has(symbol)) {
+      this.logger.debug(`[Round ${roundId}][${symbol}] ${message}`);
+      loggedSymbols.add(symbol);
+      this.loggedSymbolsPerRound.set(roundId, loggedSymbols);
+    }
+  }
+
+  // Optional: Add cleanup method to prevent memory leaks
+  private cleanupOldRounds() {
+    const currentTime = Date.now();
+    const oldRounds = Array.from(this.loggedSymbolsPerRound.keys()).filter(
+      roundId => currentTime - roundId * 5000 > 24 * 60 * 60 * 1000
+    ); // Clean rounds older than 24h
+
+    oldRounds.forEach(roundId => {
+      this.loggedSymbolsPerRound.delete(roundId);
+    });
   }
 }
 
