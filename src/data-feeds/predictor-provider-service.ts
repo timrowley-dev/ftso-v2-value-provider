@@ -286,65 +286,6 @@ export class PredictorFeed implements BaseDataFeed {
       return 0.9999;
     }
 
-    // Calculate USDT and USDC prices directly from exchanges, but skip stablecoin conversion
-    if ((feedId.name === "USDT/USD" || feedId.name === "USDC/USD") && !skipStablecoinConversion) {
-      const config = this.config.find(config => feedsEqual(config.feed, feedId));
-      if (!config) {
-        this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
-        return undefined;
-      }
-
-      const priceInfos: PriceInfo[] = [];
-      const activeExchanges = new Set<string>();
-      const inactiveExchanges = new Map<string, string>();
-
-      for (const source of config.sources) {
-        const prices = this.prices.get(source.symbol);
-        if (!prices) {
-          inactiveExchanges.set(source.exchange, "No price data received");
-          continue;
-        }
-
-        const info = prices.get(source.exchange);
-        if (info === undefined) {
-          inactiveExchanges.set(source.exchange, "Exchange initialized but no recent trades");
-          continue;
-        }
-
-        const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
-        if (Date.now() - info.time > staleness) {
-          inactiveExchanges.set(
-            source.exchange,
-            `Stale ${info.source} data (${Math.round((Date.now() - info.time) / 1000)}s old)`
-          );
-          continue;
-        }
-
-        activeExchanges.add(source.exchange);
-        priceInfos.push(info);
-      }
-
-      // Enhanced logging for stablecoin prices
-      this.logger.log(
-        `${feedId.name} - Exchange status:
-             Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
-             Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
-               .map(([exchange, reason]) => `${exchange} (${reason})`)
-               .join(", ")}`
-      );
-
-      if (priceInfos.length === 0) {
-        this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
-        return undefined;
-      }
-
-      const filteredPrices = this.removeOutliers(priceInfos);
-      return PRICE_CALCULATION_METHOD === "weighted-median"
-        ? this.weightedMedian(filteredPrices)
-        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
-    }
-
-    // Regular price calculation with stablecoin conversion
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
     if (!config) {
       this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
@@ -352,11 +293,10 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     const priceInfos: PriceInfo[] = [];
-    let usdtToUsd = undefined;
-    let usdcToUsd = undefined;
     const activeExchanges = new Set<string>();
     const inactiveExchanges = new Map<string, string>();
 
+    // Get raw prices without any conversions first
     for (const source of config.sources) {
       const prices = this.prices.get(source.symbol);
       if (!prices) {
@@ -380,42 +320,16 @@ export class PredictorFeed implements BaseDataFeed {
       }
 
       activeExchanges.add(source.exchange);
-
-      // Add logging for USDT/USDC conversions
-      if (source.symbol.endsWith("USDT")) {
-        if (usdtToUsd === undefined) {
-          usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
-          this.logger.log(`Converting USDT price using calculated rate: ${usdtToUsd}`);
-        }
-        priceInfos.push({
-          price: info.price * usdtToUsd,
-          time: info.time,
-          exchange: info.exchange,
-          volume: info.volume,
-        });
-      } else if (source.symbol.endsWith("USDC")) {
-        if (usdcToUsd === undefined) {
-          usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
-          this.logger.log(`Converting USDC price using calculated rate: ${usdcToUsd}`);
-        }
-        priceInfos.push({
-          price: info.price * usdcToUsd,
-          time: info.time,
-          exchange: info.exchange,
-          volume: info.volume,
-        });
-      } else {
-        priceInfos.push(info);
-      }
+      priceInfos.push(info);
     }
 
-    // Enhanced logging
+    // Enhanced logging for all feeds
     this.logger.log(
       `${feedId.name} - Exchange status:
-       Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
-       Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
-         .map(([exchange, reason]) => `${exchange} (${reason})`)
-         .join(", ")}`
+         Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
+         Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
+           .map(([exchange, reason]) => `${exchange} (${reason})`)
+           .join(", ")}`
     );
 
     if (priceInfos.length === 0) {
@@ -423,29 +337,40 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    // Deduplicate prices by exchange, preferring spot prices over trade prices
-    const dedupedPrices = new Map<string, PriceInfo>();
-    priceInfos.forEach(info => {
-      const existing = dedupedPrices.get(info.exchange);
-      if (!existing || (info.source === "spot" && existing.source !== "spot")) {
-        dedupedPrices.set(info.exchange, info);
-      }
-    });
-
-    const filteredPrices = this.removeOutliers(Array.from(dedupedPrices.values()));
-
-    if (PRICE_CALCULATION_METHOD === "weighted-median") {
-      return this.weightedMedian(filteredPrices);
-    } else {
-      // Simple average calculation
-      this.logger.log("Using simple average calculation:");
-      filteredPrices.forEach(price => {
-        this.logger.log(`  ${price.exchange}: ${price.price} (Source: ${price.source}, Volume: ${price.volume})`);
-      });
-      const average = filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
-      this.logger.log(`Final average price: ${average}`);
-      return average;
+    // For stablecoin feeds or when skipping conversion, use raw prices
+    if (feedId.name === "USDT/USD" || feedId.name === "USDC/USD" || skipStablecoinConversion) {
+      const filteredPrices = this.removeOutliers(priceInfos);
+      return PRICE_CALCULATION_METHOD === "weighted-median"
+        ? this.weightedMedian(filteredPrices)
+        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
     }
+
+    // For other feeds, apply stablecoin conversion if needed
+    const convertedPrices: PriceInfo[] = [];
+    for (const info of priceInfos) {
+      if (info.quoteAsset === "USDT") {
+        const usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
+        this.logger.log(`Converting USDT price using calculated rate: ${usdtPrice}`);
+        convertedPrices.push({
+          ...info,
+          price: info.price * usdtPrice,
+        });
+      } else if (info.quoteAsset === "USDC") {
+        const usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
+        this.logger.log(`Converting USDC price using calculated rate: ${usdcPrice}`);
+        convertedPrices.push({
+          ...info,
+          price: info.price * usdcPrice,
+        });
+      } else {
+        convertedPrices.push(info);
+      }
+    }
+
+    const filteredPrices = this.removeOutliers(convertedPrices);
+    return PRICE_CALCULATION_METHOD === "weighted-median"
+      ? this.weightedMedian(filteredPrices)
+      : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
   }
 
   private weightedMedian(prices: PriceInfo[]): number {
