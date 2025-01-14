@@ -22,6 +22,7 @@ const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
 const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average' or 'weighted-median'
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
+const PREFERRED_CURRENCY_PAIRS = process.env.PREFERRED_CURRENCY_PAIRS || "usdt"; // 'usdt', 'usdc', or 'both'
 
 interface FeedConfig {
   feed: FeedId;
@@ -63,7 +64,7 @@ export class PredictorFeed implements BaseDataFeed {
 
   // Add at class level
   private readonly stablecoinRateCache = new Map<string, { rate: number; timestamp: number }>();
-  private readonly CACHE_TTL_MS = 5000; // 5 second cache
+  private readonly CACHE_TTL_MS = 2000; // 2 second cache
 
   async start() {
     this.config = this.loadConfig();
@@ -560,9 +561,23 @@ export class PredictorFeed implements BaseDataFeed {
 
     try {
       const jsonString = readFileSync(configPath, "utf-8");
-      const config: FeedConfig[] = JSON.parse(jsonString);
+      let config: FeedConfig[] = JSON.parse(jsonString);
 
-      // Validate both USDT and USDC feed sources exist
+      // Filter sources based on PREFERRED_CURRENCY_PAIRS
+      config = config.map(feed => ({
+        ...feed,
+        sources: feed.sources.filter(source => {
+          // Don't filter the stablecoin feeds themselves
+          if (feed.feed.name === "USDT/USD" || feed.feed.name === "USDC/USD") return true;
+
+          if (PREFERRED_CURRENCY_PAIRS === "both") return true;
+          if (PREFERRED_CURRENCY_PAIRS === "usdt") return source.symbol.endsWith("USDT");
+          if (PREFERRED_CURRENCY_PAIRS === "usdc") return source.symbol.endsWith("USDC");
+          return true;
+        }),
+      }));
+
+      // Always validate both stablecoin feeds exist since we need them for conversion
       if (config.find(feed => feedsEqual(feed.feed, usdtToUsdFeedId)) === undefined) {
         throw new Error("Must provide USDT feed sources, as it is used for USD conversion.");
       }
@@ -571,7 +586,6 @@ export class PredictorFeed implements BaseDataFeed {
       }
 
       this.logger.log(`Supported feeds: ${JSON.stringify(config.map(f => f.feed))}`);
-
       return config;
     } catch (err) {
       this.logger.error("Error parsing JSON config:", err);
