@@ -276,20 +276,75 @@ export class PredictorFeed implements BaseDataFeed {
     );
   }
 
-  private async getFeedPrice(feedId: FeedId, votingRoundId: number): Promise<number> {
-    // Add fallback price for USDX
+  private async getFeedPrice(
+    feedId: FeedId,
+    votingRoundId: number,
+    skipStablecoinConversion: boolean = false
+  ): Promise<number> {
     if (feedId.name === "USDX/USD") {
+      this.logger.log(`Using base USDX/USD price: 0.9999`);
       return 0.9999;
     }
 
-    // Add base cases for USDT and USDC to prevent infinite recursion
-    if (feedId.name === "USDT/USD") {
-      return 1.0; // Or use a more sophisticated base price for USDT
-    }
-    if (feedId.name === "USDC/USD") {
-      return 1.0; // Or use a more sophisticated base price for USDC
+    // Calculate USDT and USDC prices directly from exchanges, but skip stablecoin conversion
+    if ((feedId.name === "USDT/USD" || feedId.name === "USDC/USD") && !skipStablecoinConversion) {
+      const config = this.config.find(config => feedsEqual(config.feed, feedId));
+      if (!config) {
+        this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
+        return undefined;
+      }
+
+      const priceInfos: PriceInfo[] = [];
+      const activeExchanges = new Set<string>();
+      const inactiveExchanges = new Map<string, string>();
+
+      for (const source of config.sources) {
+        const prices = this.prices.get(source.symbol);
+        if (!prices) {
+          inactiveExchanges.set(source.exchange, "No price data received");
+          continue;
+        }
+
+        const info = prices.get(source.exchange);
+        if (info === undefined) {
+          inactiveExchanges.set(source.exchange, "Exchange initialized but no recent trades");
+          continue;
+        }
+
+        const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
+        if (Date.now() - info.time > staleness) {
+          inactiveExchanges.set(
+            source.exchange,
+            `Stale ${info.source} data (${Math.round((Date.now() - info.time) / 1000)}s old)`
+          );
+          continue;
+        }
+
+        activeExchanges.add(source.exchange);
+        priceInfos.push(info);
+      }
+
+      // Enhanced logging for stablecoin prices
+      this.logger.log(
+        `${feedId.name} - Exchange status:
+             Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
+             Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
+               .map(([exchange, reason]) => `${exchange} (${reason})`)
+               .join(", ")}`
+      );
+
+      if (priceInfos.length === 0) {
+        this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
+        return undefined;
+      }
+
+      const filteredPrices = this.removeOutliers(priceInfos);
+      return PRICE_CALCULATION_METHOD === "weighted-median"
+        ? this.weightedMedian(filteredPrices)
+        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
     }
 
+    // Regular price calculation with stablecoin conversion
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
     if (!config) {
       this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
@@ -326,9 +381,12 @@ export class PredictorFeed implements BaseDataFeed {
 
       activeExchanges.add(source.exchange);
 
-      // Handle USDT and USDC pairs separately
+      // Add logging for USDT/USDC conversions
       if (source.symbol.endsWith("USDT")) {
-        if (usdtToUsd === undefined) usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId);
+        if (usdtToUsd === undefined) {
+          usdtToUsd = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
+          this.logger.log(`Converting USDT price using calculated rate: ${usdtToUsd}`);
+        }
         priceInfos.push({
           price: info.price * usdtToUsd,
           time: info.time,
@@ -336,7 +394,10 @@ export class PredictorFeed implements BaseDataFeed {
           volume: info.volume,
         });
       } else if (source.symbol.endsWith("USDC")) {
-        if (usdcToUsd === undefined) usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId);
+        if (usdcToUsd === undefined) {
+          usdcToUsd = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
+          this.logger.log(`Converting USDC price using calculated rate: ${usdcToUsd}`);
+        }
         priceInfos.push({
           price: info.price * usdcToUsd,
           time: info.time,
