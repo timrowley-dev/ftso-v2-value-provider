@@ -454,7 +454,7 @@ export class PredictorFeed implements BaseDataFeed {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
-      const combinedWeight = timeWeight * 0.95 + volumeWeight * 0.05;
+      const combinedWeight = timeWeight * 0.8 + volumeWeight * 0.2;
 
       this.logger.debug(
         `${data.exchange.padEnd(10)}: ` +
