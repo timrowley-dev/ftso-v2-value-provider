@@ -297,8 +297,8 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     if (feedId.name === "USDX/USD") {
-      this.logger.log(`Using base USDX/USD price: 0.9999`);
-      return 0.9999;
+      this.logger.log(`Using base USDX/USD price: 0.99995`);
+      return 0.99995;
     }
 
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
@@ -454,7 +454,7 @@ export class PredictorFeed implements BaseDataFeed {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
-      const combinedWeight = timeWeight * 0.99 + volumeWeight * 0.01;
+      const combinedWeight = timeWeight * 0.999 + volumeWeight * 0.001;
 
       this.logger.debug(
         `${data.exchange.padEnd(10)}: ` +
@@ -593,7 +593,7 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
-  private removeOutliers(prices: PriceInfo[], sigmas: number = 2.0): PriceInfo[] {
+  private removeOutliers(prices: PriceInfo[], sigmas: number = 1.5): PriceInfo[] {
     // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
