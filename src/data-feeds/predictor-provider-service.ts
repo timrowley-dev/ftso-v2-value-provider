@@ -296,11 +296,6 @@ export class PredictorFeed implements BaseDataFeed {
       this.logger.debug(`Processing feed: ${symbol}`);
     }
 
-    if (feedId.name === "USDX/USD") {
-      this.logger.log(`Using base USDX/USD price: 0.99995`);
-      return 0.99995;
-    }
-
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
     if (!config) {
       this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
