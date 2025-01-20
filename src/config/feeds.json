@@ -15,10 +15,6 @@
       },
       {
         "exchange": "binance",
-        "symbol": "AAVE/USDT"
-      },
-      {
-        "exchange": "binance",
         "symbol": "AAVE/USDC"
       },
       {
@@ -32,10 +28,6 @@
       {
         "exchange": "fmfwio",
         "symbol": "AAVE/USDT"
-      },
-      {
-        "exchange": "fmfwio",
-        "symbol": "AAVE/USDC"
       },
       {
         "exchange": "bitfinex",
@@ -58,11 +50,11 @@
         "symbol": "AAVE/USDC"
       },
       {
-        "exchange": "bitrue",
-        "symbol": "AAVE/USDT"
+        "exchange": "bitstamp",
+        "symbol": "AAVE/USD"
       },
       {
-        "exchange": "bitstamp",
+        "exchange": "bitso",
         "symbol": "AAVE/USD"
       },
       {
@@ -108,10 +100,6 @@
       {
         "exchange": "hitbtc",
         "symbol": "AAVE/USDT"
-      },
-      {
-        "exchange": "hitbtc",
-        "symbol": "AAVE/USDC"
       },
       {
         "exchange": "huobi",
@@ -195,11 +183,11 @@
       },
       {
         "exchange": "binance",
-        "symbol": "ADA/USDT"
+        "symbol": "ADA/USDC"
       },
       {
         "exchange": "binance",
-        "symbol": "ADA/USDC"
+        "symbol": "ADA/USDT"
       },
       {
         "exchange": "binanceus",
@@ -231,10 +219,6 @@
       },
       {
         "exchange": "bitget",
-        "symbol": "ADA/USDT"
-      },
-      {
-        "exchange": "bitget",
         "symbol": "ADA/USDC"
       },
       {
@@ -258,12 +242,12 @@
         "symbol": "ADA/USD"
       },
       {
-        "exchange": "bybit",
-        "symbol": "ADA/USDT"
+        "exchange": "bitso",
+        "symbol": "ADA/USD"
       },
       {
         "exchange": "bybit",
-        "symbol": "ADA/USDC"
+        "symbol": "ADA/USDT"
       },
       {
         "exchange": "coinbase",
@@ -302,8 +286,8 @@
         "symbol": "ADA/USD"
       },
       {
-        "exchange": "gateio",
-        "symbol": "ADA/USDT"
+        "exchange": "exmo",
+        "symbol": "ADA/USDC"
       },
       {
         "exchange": "gateio",
@@ -364,6 +348,10 @@
       {
         "exchange": "okx",
         "symbol": "ADA/USDC"
+      },
+      {
+        "exchange": "p2b",
+        "symbol": "ADA/USDT"
       },
       {
         "exchange": "phemex",
@@ -450,6 +438,10 @@
         "symbol": "ALGO/USD"
       },
       {
+        "exchange": "bitso",
+        "symbol": "ALGO/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "ALGO/USDT"
       },
@@ -518,6 +510,10 @@
         "symbol": "ALGO/USDT"
       },
       {
+        "exchange": "kucoin",
+        "symbol": "ALGO/USDC"
+      },
+      {
         "exchange": "latoken",
         "symbol": "ALGO/USDT"
       },
@@ -566,6 +562,154 @@
   {
     "feed": {
       "category": 1,
+      "name": "APT/USD"
+    },
+    "sources": [
+      {
+        "exchange": "bigone",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "ascendex",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "APT/USDC"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bitfinex",
+        "symbol": "APT/USD"
+      },
+      {
+        "exchange": "bitfinex",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "APT/USDC"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "APT/USDC"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "APT/USDC"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "APT/USD"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "APT/USD"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "APT/USDC"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "APT/USD"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "APT/USDC"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "poloniex",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "probit",
+        "symbol": "APT/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "APT/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
       "name": "ARB/USD"
     },
     "sources": [
@@ -582,10 +726,6 @@
         "symbol": "ARB/USDT"
       },
       {
-        "exchange": "binance",
-        "symbol": "ARB/USDC"
-      },
-      {
         "exchange": "binanceus",
         "symbol": "ARB/USDT"
       },
@@ -595,19 +735,19 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "ARB/USDT"
+        "symbol": "ARB/USD"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "ARB/USD"
+        "symbol": "ARB/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "ARB/USDT"
       },
       {
         "exchange": "bitget",
         "symbol": "ARB/USDC"
-      },
-      {
-        "exchange": "bitget",
-        "symbol": "ARB/USDT"
       },
       {
         "exchange": "bitmart",
@@ -623,6 +763,10 @@
       },
       {
         "exchange": "bitstamp",
+        "symbol": "ARB/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "ARB/USD"
       },
       {
@@ -659,11 +803,11 @@
       },
       {
         "exchange": "exmo",
-        "symbol": "ARB/USDT"
+        "symbol": "ARB/USDC"
       },
       {
         "exchange": "exmo",
-        "symbol": "ARB/USDC"
+        "symbol": "ARB/USDT"
       },
       {
         "exchange": "gateio",
@@ -758,10 +902,6 @@
         "symbol": "ATOM/USDT"
       },
       {
-        "exchange": "binance",
-        "symbol": "ATOM/USDC"
-      },
-      {
         "exchange": "binanceus",
         "symbol": "ATOM/USDT"
       },
@@ -798,6 +938,10 @@
         "symbol": "ATOM/USDT"
       },
       {
+        "exchange": "bitso",
+        "symbol": "ATOM/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "ATOM/USDT"
       },
@@ -820,10 +964,6 @@
       {
         "exchange": "coinex",
         "symbol": "ATOM/USDC"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "ATOM/USDT"
       },
       {
         "exchange": "cryptocom",
@@ -880,10 +1020,6 @@
       {
         "exchange": "kucoin",
         "symbol": "ATOM/USDT"
-      },
-      {
-        "exchange": "kucoin",
-        "symbol": "ATOM/USDC"
       },
       {
         "exchange": "latoken",
@@ -1006,6 +1142,10 @@
         "symbol": "AVAX/USD"
       },
       {
+        "exchange": "bitso",
+        "symbol": "AVAX/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "AVAX/USDT"
       },
@@ -1031,11 +1171,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "AVAX/USDT"
+        "symbol": "AVAX/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "AVAX/USD"
+        "symbol": "AVAX/USDT"
       },
       {
         "exchange": "digifinex",
@@ -1158,6 +1298,10 @@
         "symbol": "BCH/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "BCH/USDC"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "BCH/USDT"
       },
@@ -1194,6 +1338,10 @@
         "symbol": "BCH/USD"
       },
       {
+        "exchange": "bitso",
+        "symbol": "BCH/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "BCH/USDT"
       },
@@ -1215,11 +1363,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "BCH/USDT"
+        "symbol": "BCH/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "BCH/USD"
+        "symbol": "BCH/USDT"
       },
       {
         "exchange": "digifinex",
@@ -1267,15 +1415,15 @@
       },
       {
         "exchange": "kraken",
+        "symbol": "BCH/USDT"
+      },
+      {
+        "exchange": "kraken",
         "symbol": "BCH/USDC"
       },
       {
         "exchange": "kucoin",
         "symbol": "BCH/USDT"
-      },
-      {
-        "exchange": "kucoin",
-        "symbol": "BCH/USDC"
       },
       {
         "exchange": "latoken",
@@ -1475,11 +1623,11 @@
       },
       {
         "exchange": "p2b",
-        "symbol": "BNB/USD"
+        "symbol": "BNB/USDT"
       },
       {
         "exchange": "p2b",
-        "symbol": "BNB/USDT"
+        "symbol": "BNB/USD"
       },
       {
         "exchange": "phemex",
@@ -1570,10 +1718,6 @@
         "symbol": "BONK/USDT"
       },
       {
-        "exchange": "bybit",
-        "symbol": "BONK/USDC"
-      },
-      {
         "exchange": "coinbase",
         "symbol": "BONK/USD"
       },
@@ -1595,10 +1739,6 @@
       },
       {
         "exchange": "digifinex",
-        "symbol": "BONK/USDT"
-      },
-      {
-        "exchange": "gateio",
         "symbol": "BONK/USDT"
       },
       {
@@ -1674,10 +1814,6 @@
     },
     "sources": [
       {
-        "exchange": "bigone",
-        "symbol": "BTC/USDT"
-      },
-      {
         "exchange": "ascendex",
         "symbol": "BTC/USDT"
       },
@@ -1695,11 +1831,11 @@
       },
       {
         "exchange": "binanceus",
-        "symbol": "BTC/USDC"
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "binanceus",
-        "symbol": "BTC/USDT"
+        "symbol": "BTC/USDC"
       },
       {
         "exchange": "bingx",
@@ -1711,15 +1847,19 @@
       },
       {
         "exchange": "fmfwio",
-        "symbol": "BTC/USDT"
+        "symbol": "BTC/USDC"
       },
       {
         "exchange": "fmfwio",
-        "symbol": "BTC/USDC"
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "bitfinex",
         "symbol": "BTC/USD"
+      },
+      {
+        "exchange": "bitfinex",
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "bitflyer",
@@ -1727,11 +1867,11 @@
       },
       {
         "exchange": "bitget",
-        "symbol": "BTC/USDT"
+        "symbol": "BTC/USDC"
       },
       {
-        "exchange": "bitget",
-        "symbol": "BTC/USDC"
+        "exchange": "bitmart",
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "bitmart",
@@ -1739,10 +1879,6 @@
       },
       {
         "exchange": "bitrue",
-        "symbol": "BTC/USDT"
-      },
-      {
-        "exchange": "bitrue",
         "symbol": "BTC/USDC"
       },
       {
@@ -1758,12 +1894,20 @@
         "symbol": "BTC/USDC"
       },
       {
-        "exchange": "bybit",
+        "exchange": "bitso",
+        "symbol": "BTC/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "BTC/USDT"
       },
       {
         "exchange": "bybit",
         "symbol": "BTC/USDC"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "coinbase",
@@ -1775,11 +1919,11 @@
       },
       {
         "exchange": "coinex",
-        "symbol": "BTC/USDC"
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "coinex",
-        "symbol": "BTC/USDT"
+        "symbol": "BTC/USDC"
       },
       {
         "exchange": "cryptocom",
@@ -1803,15 +1947,11 @@
       },
       {
         "exchange": "exmo",
-        "symbol": "BTC/USDC"
-      },
-      {
-        "exchange": "exmo",
         "symbol": "BTC/USD"
       },
       {
-        "exchange": "gateio",
-        "symbol": "BTC/USDT"
+        "exchange": "exmo",
+        "symbol": "BTC/USDC"
       },
       {
         "exchange": "gateio",
@@ -1867,10 +2007,6 @@
       },
       {
         "exchange": "lbank",
-        "symbol": "BTC/USDC"
-      },
-      {
-        "exchange": "lbank",
         "symbol": "BTC/USDT"
       },
       {
@@ -1892,6 +2028,10 @@
       {
         "exchange": "okx",
         "symbol": "BTC/USD"
+      },
+      {
+        "exchange": "p2b",
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "p2b",
@@ -1919,19 +2059,19 @@
       },
       {
         "exchange": "woo",
-        "symbol": "BTC/USDC"
+        "symbol": "BTC/USDT"
       },
       {
         "exchange": "woo",
-        "symbol": "BTC/USDT"
-      },
-      {
-        "exchange": "xt",
-        "symbol": "BTC/USDT"
+        "symbol": "BTC/USDC"
       },
       {
         "exchange": "xt",
         "symbol": "BTC/USDC"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "BTC/USDT"
       }
     ]
   },
@@ -1963,7 +2103,7 @@
       },
       {
         "exchange": "bitmart",
-        "symbol": "DAI/USDT"
+        "symbol": "DAI/USDC"
       },
       {
         "exchange": "bitrue",
@@ -1998,14 +2138,6 @@
         "symbol": "DAI/USDT"
       },
       {
-        "exchange": "exmo",
-        "symbol": "DAI/USDT"
-      },
-      {
-        "exchange": "exmo",
-        "symbol": "DAI/USD"
-      },
-      {
         "exchange": "gateio",
         "symbol": "DAI/USDT"
       },
@@ -2023,11 +2155,11 @@
       },
       {
         "exchange": "kraken",
-        "symbol": "DAI/USD"
+        "symbol": "DAI/USDT"
       },
       {
         "exchange": "kraken",
-        "symbol": "DAI/USDT"
+        "symbol": "DAI/USD"
       },
       {
         "exchange": "lbank",
@@ -2043,11 +2175,11 @@
       },
       {
         "exchange": "okx",
-        "symbol": "DAI/USD"
+        "symbol": "DAI/USDC"
       },
       {
         "exchange": "okx",
-        "symbol": "DAI/USDC"
+        "symbol": "DAI/USD"
       },
       {
         "exchange": "phemex",
@@ -2091,11 +2223,11 @@
       },
       {
         "exchange": "bingx",
-        "symbol": "DOGE/USDC"
+        "symbol": "DOGE/USDT"
       },
       {
         "exchange": "bingx",
-        "symbol": "DOGE/USDT"
+        "symbol": "DOGE/USDC"
       },
       {
         "exchange": "fmfwio",
@@ -2112,10 +2244,6 @@
       {
         "exchange": "bitfinex",
         "symbol": "DOGE/USD"
-      },
-      {
-        "exchange": "bitget",
-        "symbol": "DOGE/USDT"
       },
       {
         "exchange": "bitget",
@@ -2142,6 +2270,10 @@
         "symbol": "DOGE/USD"
       },
       {
+        "exchange": "bitso",
+        "symbol": "DOGE/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "DOGE/USDT"
       },
@@ -2159,15 +2291,19 @@
       },
       {
         "exchange": "coinex",
+        "symbol": "DOGE/USDT"
+      },
+      {
+        "exchange": "coinex",
         "symbol": "DOGE/USDC"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "DOGE/USDT"
+        "symbol": "DOGE/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "DOGE/USD"
+        "symbol": "DOGE/USDT"
       },
       {
         "exchange": "digifinex",
@@ -2180,10 +2316,6 @@
       {
         "exchange": "exmo",
         "symbol": "DOGE/USD"
-      },
-      {
-        "exchange": "gateio",
-        "symbol": "DOGE/USDT"
       },
       {
         "exchange": "gateio",
@@ -2218,12 +2350,16 @@
         "symbol": "DOGE/USDT"
       },
       {
-        "exchange": "mexc",
-        "symbol": "DOGE/USDC"
+        "exchange": "lbank",
+        "symbol": "DOGE/USDT"
       },
       {
         "exchange": "mexc",
         "symbol": "DOGE/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "DOGE/USDC"
       },
       {
         "exchange": "okx",
@@ -2287,7 +2423,7 @@
       },
       {
         "exchange": "binance",
-        "symbol": "DOT/USDT"
+        "symbol": "DOT/USDC"
       },
       {
         "exchange": "binanceus",
@@ -2311,15 +2447,19 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "DOT/USDT"
+        "symbol": "DOT/USD"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "DOT/USD"
+        "symbol": "DOT/USDT"
       },
       {
         "exchange": "bitget",
         "symbol": "DOT/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "DOT/USDC"
       },
       {
         "exchange": "bitmart",
@@ -2335,6 +2475,10 @@
       },
       {
         "exchange": "bitstamp",
+        "symbol": "DOT/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "DOT/USD"
       },
       {
@@ -2375,11 +2519,11 @@
       },
       {
         "exchange": "exmo",
-        "symbol": "DOT/USDT"
+        "symbol": "DOT/USD"
       },
       {
         "exchange": "exmo",
-        "symbol": "DOT/USD"
+        "symbol": "DOT/USDT"
       },
       {
         "exchange": "gateio",
@@ -2396,10 +2540,6 @@
       {
         "exchange": "hitbtc",
         "symbol": "DOT/USDT"
-      },
-      {
-        "exchange": "hitbtc",
-        "symbol": "DOT/USDC"
       },
       {
         "exchange": "huobi",
@@ -2554,10 +2694,6 @@
         "symbol": "ENA/USDT"
       },
       {
-        "exchange": "gateio",
-        "symbol": "ENA/USDC"
-      },
-      {
         "exchange": "huobi",
         "symbol": "ENA/USDT"
       },
@@ -2575,10 +2711,6 @@
       },
       {
         "exchange": "lbank",
-        "symbol": "ENA/USDT"
-      },
-      {
-        "exchange": "mexc",
         "symbol": "ENA/USDT"
       },
       {
@@ -2614,6 +2746,10 @@
         "symbol": "ETC/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "ETC/USDT"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "ETC/USDT"
       },
@@ -2638,6 +2774,14 @@
         "symbol": "ETC/USDT"
       },
       {
+        "exchange": "bitrue",
+        "symbol": "ETC/USDC"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "ETC/USDT"
+      },
+      {
         "exchange": "bybit",
         "symbol": "ETC/USDT"
       },
@@ -2656,10 +2800,6 @@
       {
         "exchange": "cryptocom",
         "symbol": "ETC/USD"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "ETC/USDT"
       },
       {
         "exchange": "digifinex",
@@ -2771,11 +2911,11 @@
       },
       {
         "exchange": "binance",
-        "symbol": "ETH/USDT"
+        "symbol": "ETH/USDC"
       },
       {
         "exchange": "binance",
-        "symbol": "ETH/USDC"
+        "symbol": "ETH/USDT"
       },
       {
         "exchange": "binanceus",
@@ -2823,6 +2963,10 @@
       },
       {
         "exchange": "bitmart",
+        "symbol": "ETH/USDT"
+      },
+      {
+        "exchange": "bitmart",
         "symbol": "ETH/USDC"
       },
       {
@@ -2846,8 +2990,12 @@
         "symbol": "ETH/USDT"
       },
       {
-        "exchange": "bitstamp",
-        "symbol": "ETH/USDC"
+        "exchange": "bitso",
+        "symbol": "ETH/USD"
+      },
+      {
+        "exchange": "bitso",
+        "symbol": "ETH/USDT"
       },
       {
         "exchange": "bybit",
@@ -2862,6 +3010,10 @@
         "symbol": "ETH/USD"
       },
       {
+        "exchange": "coinbase",
+        "symbol": "ETH/USDT"
+      },
+      {
         "exchange": "coinex",
         "symbol": "ETH/USDT"
       },
@@ -2871,11 +3023,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "ETH/USDT"
+        "symbol": "ETH/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "ETH/USD"
+        "symbol": "ETH/USDT"
       },
       {
         "exchange": "digifinex",
@@ -2894,8 +3046,8 @@
         "symbol": "ETH/USDC"
       },
       {
-        "exchange": "gateio",
-        "symbol": "ETH/USDT"
+        "exchange": "exmo",
+        "symbol": "ETH/USD"
       },
       {
         "exchange": "gateio",
@@ -2911,15 +3063,19 @@
       },
       {
         "exchange": "hitbtc",
-        "symbol": "ETH/USDC"
+        "symbol": "ETH/USDT"
       },
       {
         "exchange": "hitbtc",
-        "symbol": "ETH/USDT"
+        "symbol": "ETH/USDC"
       },
       {
         "exchange": "huobi",
         "symbol": "ETH/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "ETH/USDC"
       },
       {
         "exchange": "kraken",
@@ -2947,11 +3103,11 @@
       },
       {
         "exchange": "lbank",
-        "symbol": "ETH/USDC"
+        "symbol": "ETH/USDT"
       },
       {
         "exchange": "lbank",
-        "symbol": "ETH/USDT"
+        "symbol": "ETH/USDC"
       },
       {
         "exchange": "mexc",
@@ -2983,11 +3139,11 @@
       },
       {
         "exchange": "poloniex",
-        "symbol": "ETH/USDC"
+        "symbol": "ETH/USDT"
       },
       {
         "exchange": "poloniex",
-        "symbol": "ETH/USDT"
+        "symbol": "ETH/USDC"
       },
       {
         "exchange": "probit",
@@ -3007,11 +3163,11 @@
       },
       {
         "exchange": "xt",
-        "symbol": "ETH/USDT"
+        "symbol": "ETH/USDC"
       },
       {
         "exchange": "xt",
-        "symbol": "ETH/USDC"
+        "symbol": "ETH/USDT"
       }
     ]
   },
@@ -3074,6 +3230,10 @@
         "symbol": "ETHFI/USDC"
       },
       {
+        "exchange": "huobi",
+        "symbol": "ETHFI/USDT"
+      },
+      {
         "exchange": "kraken",
         "symbol": "ETHFI/USD"
       },
@@ -3087,6 +3247,10 @@
       },
       {
         "exchange": "lbank",
+        "symbol": "ETHFI/USDT"
+      },
+      {
+        "exchange": "mexc",
         "symbol": "ETHFI/USDT"
       },
       {
@@ -3191,11 +3355,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "FET/USDT"
+        "symbol": "FET/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "FET/USD"
+        "symbol": "FET/USDT"
       },
       {
         "exchange": "digifinex",
@@ -3278,10 +3442,6 @@
         "symbol": "FIL/USDT"
       },
       {
-        "exchange": "binance",
-        "symbol": "FIL/USDC"
-      },
-      {
         "exchange": "binanceus",
         "symbol": "FIL/USDT"
       },
@@ -3352,10 +3512,6 @@
       {
         "exchange": "gateio",
         "symbol": "FIL/USDT"
-      },
-      {
-        "exchange": "gateio",
-        "symbol": "FIL/USDC"
       },
       {
         "exchange": "gemini",
@@ -3462,10 +3618,6 @@
         "symbol": "FLR/USDT"
       },
       {
-        "exchange": "cryptocom",
-        "symbol": "FLR/USD"
-      },
-      {
         "exchange": "digifinex",
         "symbol": "FLR/USDT"
       },
@@ -3488,6 +3640,10 @@
       {
         "exchange": "kucoin",
         "symbol": "FLR/USDC"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "FLR/USDT"
       },
       {
         "exchange": "mexc",
@@ -3526,34 +3682,14 @@
     },
     "sources": [
       {
-        "exchange": "bigone",
-        "symbol": "FTM/USDT"
-      },
-      {
         "exchange": "ascendex",
         "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "binance",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "binance",
-        "symbol": "FTM/USDC"
       },
       {
         "exchange": "binanceus",
         "symbol": "FTM/USDT"
       },
       {
-        "exchange": "bingx",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "fmfwio",
-        "symbol": "FTM/USDT"
-      },
-      {
         "exchange": "bitfinex",
         "symbol": "FTM/USD"
       },
@@ -3562,15 +3698,7 @@
         "symbol": "FTM/USDT"
       },
       {
-        "exchange": "bitget",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "bitmart",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "bitstamp",
+        "exchange": "bitso",
         "symbol": "FTM/USD"
       },
       {
@@ -3580,70 +3708,150 @@
       {
         "exchange": "bybit",
         "symbol": "FTM/USDC"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "FTM/USD"
-      },
-      {
-        "exchange": "digifinex",
-        "symbol": "FTM/USDT"
       },
       {
         "exchange": "gemini",
         "symbol": "FTM/USD"
       },
       {
-        "exchange": "hitbtc",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "huobi",
-        "symbol": "FTM/USDT"
-      },
-      {
         "exchange": "kraken",
         "symbol": "FTM/USD"
-      },
-      {
-        "exchange": "kucoin",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "kucoin",
-        "symbol": "FTM/USDC"
       },
       {
         "exchange": "latoken",
         "symbol": "FTM/USDT"
       },
       {
-        "exchange": "okx",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "okx",
-        "symbol": "FTM/USDC"
-      },
-      {
         "exchange": "poloniex",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "probit",
-        "symbol": "FTM/USDT"
-      },
-      {
-        "exchange": "woo",
         "symbol": "FTM/USDT"
       },
       {
         "exchange": "xt",
         "symbol": "FTM/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
+      "name": "HBAR/USD"
+    },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "HBAR/USDC"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "fmfwio",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "HBAR/USDC"
+      },
+      {
+        "exchange": "bitstamp",
+        "symbol": "HBAR/USD"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "HBAR/USD"
+      },
+      {
+        "exchange": "coinbase",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "HBAR/USDC"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "HBAR/USD"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "latoken",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "HBAR/USDC"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "woo",
+        "symbol": "HBAR/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "HBAR/USDT"
       }
     ]
   },
@@ -3730,6 +3938,42 @@
   {
     "feed": {
       "category": 1,
+      "name": "HYPE/USD"
+    },
+    "sources": [
+      {
+        "exchange": "bingx",
+        "symbol": "HYPE/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "HYPE/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "HYPE/USDT"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "HYPE/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "HYPE/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "HYPE/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "HYPE/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
       "name": "ICP/USD"
     },
     "sources": [
@@ -3746,10 +3990,6 @@
         "symbol": "ICP/USDT"
       },
       {
-        "exchange": "binance",
-        "symbol": "ICP/USDC"
-      },
-      {
         "exchange": "binanceus",
         "symbol": "ICP/USDT"
       },
@@ -3759,11 +3999,11 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "ICP/USD"
+        "symbol": "ICP/USDT"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "ICP/USDT"
+        "symbol": "ICP/USD"
       },
       {
         "exchange": "bitget",
@@ -3776,6 +4016,10 @@
       {
         "exchange": "bitrue",
         "symbol": "ICP/USDC"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "ICP/USDT"
       },
       {
         "exchange": "bitstamp",
@@ -3807,18 +4051,10 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "ICP/USD"
-      },
-      {
-        "exchange": "cryptocom",
         "symbol": "ICP/USDT"
       },
       {
         "exchange": "digifinex",
-        "symbol": "ICP/USDT"
-      },
-      {
-        "exchange": "gateio",
         "symbol": "ICP/USDT"
       },
       {
@@ -3876,6 +4112,26 @@
       {
         "exchange": "xt",
         "symbol": "ICP/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
+      "name": "JOULE/USD"
+    },
+    "sources": [
+      {
+        "exchange": "bitrue",
+        "symbol": "JOULE/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "JOULE/USDT"
+      },
+      {
+        "exchange": "probit",
+        "symbol": "JOULE/USDT"
       }
     ]
   },
@@ -3978,10 +4234,6 @@
         "symbol": "JUP/USDT"
       },
       {
-        "exchange": "mexc",
-        "symbol": "JUP/USDT"
-      },
-      {
         "exchange": "okx",
         "symbol": "JUP/USDT"
       },
@@ -4035,6 +4287,10 @@
       },
       {
         "exchange": "gateio",
+        "symbol": "LEO/USDT"
+      },
+      {
+        "exchange": "hitbtc",
         "symbol": "LEO/USDT"
       },
       {
@@ -4106,6 +4362,10 @@
         "symbol": "LINK/USDT"
       },
       {
+        "exchange": "fmfwio",
+        "symbol": "LINK/USDC"
+      },
+      {
         "exchange": "bitfinex",
         "symbol": "LINK/USD"
       },
@@ -4131,14 +4391,18 @@
       },
       {
         "exchange": "bitrue",
-        "symbol": "LINK/USDT"
-      },
-      {
-        "exchange": "bitrue",
         "symbol": "LINK/USDC"
       },
       {
+        "exchange": "bitrue",
+        "symbol": "LINK/USDT"
+      },
+      {
         "exchange": "bitstamp",
+        "symbol": "LINK/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "LINK/USD"
       },
       {
@@ -4183,10 +4447,6 @@
       },
       {
         "exchange": "gateio",
-        "symbol": "LINK/USDT"
-      },
-      {
-        "exchange": "gateio",
         "symbol": "LINK/USDC"
       },
       {
@@ -4196,6 +4456,10 @@
       {
         "exchange": "hitbtc",
         "symbol": "LINK/USDT"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "LINK/USDC"
       },
       {
         "exchange": "huobi",
@@ -4338,6 +4602,10 @@
         "symbol": "LTC/USD"
       },
       {
+        "exchange": "bitso",
+        "symbol": "LTC/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "LTC/USDT"
       },
@@ -4359,11 +4627,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "LTC/USDT"
+        "symbol": "LTC/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "LTC/USD"
+        "symbol": "LTC/USDT"
       },
       {
         "exchange": "digifinex",
@@ -4459,11 +4727,11 @@
       },
       {
         "exchange": "p2b",
-        "symbol": "LTC/USDT"
+        "symbol": "LTC/USD"
       },
       {
         "exchange": "p2b",
-        "symbol": "LTC/USD"
+        "symbol": "LTC/USDT"
       },
       {
         "exchange": "phemex",
@@ -4547,14 +4815,18 @@
       },
       {
         "exchange": "bitrue",
-        "symbol": "NEAR/USDT"
-      },
-      {
-        "exchange": "bitrue",
         "symbol": "NEAR/USDC"
       },
       {
+        "exchange": "bitrue",
+        "symbol": "NEAR/USDT"
+      },
+      {
         "exchange": "bitstamp",
+        "symbol": "NEAR/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "NEAR/USD"
       },
       {
@@ -4735,11 +5007,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "NOT/USDT"
+        "symbol": "NOT/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "NOT/USD"
+        "symbol": "NOT/USDT"
       },
       {
         "exchange": "digifinex",
@@ -4818,6 +5090,10 @@
         "symbol": "ONDO/USDT"
       },
       {
+        "exchange": "bitmart",
+        "symbol": "ONDO/USDT"
+      },
+      {
         "exchange": "bitrue",
         "symbol": "ONDO/USDT"
       },
@@ -4844,10 +5120,6 @@
       {
         "exchange": "coinex",
         "symbol": "ONDO/USDC"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "ONDO/USD"
       },
       {
         "exchange": "cryptocom",
@@ -4914,6 +5186,202 @@
   {
     "feed": {
       "category": 1,
+      "name": "PAXG/USD"
+    },
+    "sources": [
+      {
+        "exchange": "binance",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "binanceus",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "bitso",
+        "symbol": "PAXG/USD"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "PAXG/USD"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "gemini",
+        "symbol": "PAXG/USD"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "PAXG/USD"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "latoken",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "PAXG/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "PAXG/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
+      "name": "PENGU/USD"
+    },
+    "sources": [
+      {
+        "exchange": "bigone",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "ascendex",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "PENGU/USDC"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "PENGU/USDC"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "PENGU/USD"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "exmo",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "exmo",
+        "symbol": "PENGU/USDC"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "lbank",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "woo",
+        "symbol": "PENGU/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "PENGU/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
       "name": "PEPE/USD"
     },
     "sources": [
@@ -4930,6 +5398,10 @@
         "symbol": "PEPE/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "PEPE/USDC"
+      },
+      {
         "exchange": "binanceus",
         "symbol": "PEPE/USDT"
       },
@@ -4939,11 +5411,11 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "PEPE/USD"
+        "symbol": "PEPE/USDT"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "PEPE/USDT"
+        "symbol": "PEPE/USD"
       },
       {
         "exchange": "bitget",
@@ -4955,14 +5427,18 @@
       },
       {
         "exchange": "bitrue",
-        "symbol": "PEPE/USDT"
-      },
-      {
-        "exchange": "bitrue",
         "symbol": "PEPE/USDC"
       },
       {
+        "exchange": "bitrue",
+        "symbol": "PEPE/USDT"
+      },
+      {
         "exchange": "bitstamp",
+        "symbol": "PEPE/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "PEPE/USD"
       },
       {
@@ -4999,10 +5475,18 @@
       },
       {
         "exchange": "exmo",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "exmo",
         "symbol": "PEPE/USD"
       },
       {
         "exchange": "exmo",
+        "symbol": "PEPE/USDC"
+      },
+      {
+        "exchange": "gateio",
         "symbol": "PEPE/USDC"
       },
       {
@@ -5031,6 +5515,10 @@
       },
       {
         "exchange": "lbank",
+        "symbol": "PEPE/USDT"
+      },
+      {
+        "exchange": "mexc",
         "symbol": "PEPE/USDT"
       },
       {
@@ -5087,10 +5575,6 @@
       },
       {
         "exchange": "binance",
-        "symbol": "POL/USDT"
-      },
-      {
-        "exchange": "binance",
         "symbol": "POL/USDC"
       },
       {
@@ -5099,11 +5583,11 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "POL/USDT"
+        "symbol": "POL/USD"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "POL/USD"
+        "symbol": "POL/USDT"
       },
       {
         "exchange": "bitget",
@@ -5122,6 +5606,10 @@
         "symbol": "POL/USDT"
       },
       {
+        "exchange": "bitso",
+        "symbol": "POL/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "POL/USDT"
       },
@@ -5136,10 +5624,6 @@
       {
         "exchange": "cryptocom",
         "symbol": "POL/USD"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "POL/USDT"
       },
       {
         "exchange": "digifinex",
@@ -5214,12 +5698,16 @@
         "symbol": "PYTH/USDT"
       },
       {
-        "exchange": "bitrue",
-        "symbol": "PYTH/USDC"
+        "exchange": "bitmart",
+        "symbol": "PYTH/USDT"
       },
       {
         "exchange": "bitrue",
         "symbol": "PYTH/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "PYTH/USDC"
       },
       {
         "exchange": "bitstamp",
@@ -5235,11 +5723,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "PYTH/USD"
+        "symbol": "PYTH/USDT"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "PYTH/USDT"
+        "symbol": "PYTH/USD"
       },
       {
         "exchange": "digifinex",
@@ -5252,6 +5740,10 @@
       {
         "exchange": "gemini",
         "symbol": "PYTH/USD"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "PYTH/USDT"
       },
       {
         "exchange": "huobi",
@@ -5326,6 +5818,10 @@
         "symbol": "QNT/USDT"
       },
       {
+        "exchange": "fmfwio",
+        "symbol": "QNT/USDC"
+      },
+      {
         "exchange": "bitget",
         "symbol": "QNT/USDT"
       },
@@ -5340,6 +5836,10 @@
       {
         "exchange": "bitrue",
         "symbol": "QNT/USDC"
+      },
+      {
+        "exchange": "bitso",
+        "symbol": "QNT/USD"
       },
       {
         "exchange": "bybit",
@@ -5380,6 +5880,10 @@
       {
         "exchange": "hitbtc",
         "symbol": "QNT/USDT"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "QNT/USDC"
       },
       {
         "exchange": "kraken",
@@ -5424,6 +5928,10 @@
       {
         "exchange": "ascendex",
         "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "RENDER/USDC"
       },
       {
         "exchange": "binance",
@@ -5522,6 +6030,14 @@
         "symbol": "RENDER/USDT"
       },
       {
+        "exchange": "probit",
+        "symbol": "RENDER/USDT"
+      },
+      {
+        "exchange": "upbit",
+        "symbol": "RENDER/USDT"
+      },
+      {
         "exchange": "woo",
         "symbol": "RENDER/USDT"
       }
@@ -5536,14 +6052,6 @@
       {
         "exchange": "ascendex",
         "symbol": "RUNE/USDT"
-      },
-      {
-        "exchange": "binance",
-        "symbol": "RUNE/USDT"
-      },
-      {
-        "exchange": "binance",
-        "symbol": "RUNE/USDC"
       },
       {
         "exchange": "bingx",
@@ -5571,15 +6079,15 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "RUNE/USD"
-      },
-      {
-        "exchange": "cryptocom",
         "symbol": "RUNE/USDT"
       },
       {
         "exchange": "gateio",
         "symbol": "RUNE/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "RUNE/USDC"
       },
       {
         "exchange": "hitbtc",
@@ -5634,6 +6142,14 @@
         "symbol": "S/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "S/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "S/USDT"
+      },
+      {
         "exchange": "bybit",
         "symbol": "S/USDT"
       },
@@ -5646,6 +6162,14 @@
         "symbol": "S/USDC"
       },
       {
+        "exchange": "gateio",
+        "symbol": "S/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "S/USDT"
+      },
+      {
         "exchange": "mexc",
         "symbol": "S/USDT"
       },
@@ -5655,6 +6179,10 @@
       },
       {
         "exchange": "probit",
+        "symbol": "S/USDT"
+      },
+      {
+        "exchange": "woo",
         "symbol": "S/USDT"
       },
       {
@@ -5726,6 +6254,10 @@
         "symbol": "SHIB/USDT"
       },
       {
+        "exchange": "bingx",
+        "symbol": "SHIB/USDT"
+      },
+      {
         "exchange": "fmfwio",
         "symbol": "SHIB/USDT"
       },
@@ -5735,11 +6267,11 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "SHIB/USDT"
+        "symbol": "SHIB/USD"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "SHIB/USD"
+        "symbol": "SHIB/USDT"
       },
       {
         "exchange": "bitget",
@@ -5763,6 +6295,10 @@
       },
       {
         "exchange": "bitstamp",
+        "symbol": "SHIB/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "SHIB/USD"
       },
       {
@@ -5808,10 +6344,6 @@
       {
         "exchange": "exmo",
         "symbol": "SHIB/USD"
-      },
-      {
-        "exchange": "gateio",
-        "symbol": "SHIB/USDT"
       },
       {
         "exchange": "gateio",
@@ -5927,6 +6459,10 @@
       },
       {
         "exchange": "binance",
+        "symbol": "SOL/USDT"
+      },
+      {
+        "exchange": "binance",
         "symbol": "SOL/USDC"
       },
       {
@@ -5943,14 +6479,10 @@
       },
       {
         "exchange": "fmfwio",
-        "symbol": "SOL/USDT"
-      },
-      {
-        "exchange": "fmfwio",
         "symbol": "SOL/USDC"
       },
       {
-        "exchange": "bitfinex",
+        "exchange": "fmfwio",
         "symbol": "SOL/USDT"
       },
       {
@@ -5958,7 +6490,7 @@
         "symbol": "SOL/USD"
       },
       {
-        "exchange": "bitget",
+        "exchange": "bitfinex",
         "symbol": "SOL/USDT"
       },
       {
@@ -5979,10 +6511,6 @@
       },
       {
         "exchange": "bitrue",
-        "symbol": "SOL/USDT"
-      },
-      {
-        "exchange": "bitrue",
         "symbol": "SOL/USDC"
       },
       {
@@ -5990,12 +6518,20 @@
         "symbol": "SOL/USD"
       },
       {
-        "exchange": "bybit",
+        "exchange": "bitso",
         "symbol": "SOL/USDT"
+      },
+      {
+        "exchange": "bitso",
+        "symbol": "SOL/USD"
       },
       {
         "exchange": "bybit",
         "symbol": "SOL/USDC"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "SOL/USDT"
       },
       {
         "exchange": "coinbase",
@@ -6032,10 +6568,6 @@
       {
         "exchange": "exmo",
         "symbol": "SOL/USDC"
-      },
-      {
-        "exchange": "gateio",
-        "symbol": "SOL/USDT"
       },
       {
         "exchange": "gateio",
@@ -6078,16 +6610,16 @@
         "symbol": "SOL/USDC"
       },
       {
+        "exchange": "latoken",
+        "symbol": "SOL/USDT"
+      },
+      {
         "exchange": "lbank",
         "symbol": "SOL/USDC"
       },
       {
         "exchange": "lbank",
         "symbol": "SOL/USDT"
-      },
-      {
-        "exchange": "mexc",
-        "symbol": "SOL/USDC"
       },
       {
         "exchange": "mexc",
@@ -6104,6 +6636,10 @@
       {
         "exchange": "okx",
         "symbol": "SOL/USD"
+      },
+      {
+        "exchange": "p2b",
+        "symbol": "SOL/USDT"
       },
       {
         "exchange": "phemex",
@@ -6147,10 +6683,6 @@
       },
       {
         "exchange": "binance",
-        "symbol": "SUI/USDT"
-      },
-      {
-        "exchange": "binance",
         "symbol": "SUI/USDC"
       },
       {
@@ -6163,11 +6695,11 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "SUI/USD"
+        "symbol": "SUI/USDT"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "SUI/USDT"
+        "symbol": "SUI/USD"
       },
       {
         "exchange": "bitget",
@@ -6223,6 +6755,10 @@
       },
       {
         "exchange": "exmo",
+        "symbol": "SUI/USDT"
+      },
+      {
+        "exchange": "gateio",
         "symbol": "SUI/USDT"
       },
       {
@@ -6298,6 +6834,10 @@
         "symbol": "TAO/USDT"
       },
       {
+        "exchange": "binance",
+        "symbol": "TAO/USDC"
+      },
+      {
         "exchange": "bingx",
         "symbol": "TAO/USDT"
       },
@@ -6324,6 +6864,14 @@
       {
         "exchange": "coinex",
         "symbol": "TAO/USDC"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "TAO/USD"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "TAO/USDT"
       },
       {
         "exchange": "kraken",
@@ -6362,6 +6910,10 @@
         "symbol": "TON/USDT"
       },
       {
+        "exchange": "ascendex",
+        "symbol": "TON/USDT"
+      },
+      {
         "exchange": "binance",
         "symbol": "TON/USDT"
       },
@@ -6390,6 +6942,10 @@
         "symbol": "TON/USDT"
       },
       {
+        "exchange": "bitrue",
+        "symbol": "TON/USDC"
+      },
+      {
         "exchange": "bybit",
         "symbol": "TON/USDT"
       },
@@ -6404,10 +6960,6 @@
       {
         "exchange": "coinex",
         "symbol": "TON/USDC"
-      },
-      {
-        "exchange": "cryptocom",
-        "symbol": "TON/USD"
       },
       {
         "exchange": "cryptocom",
@@ -6432,10 +6984,6 @@
       {
         "exchange": "huobi",
         "symbol": "TON/USDT"
-      },
-      {
-        "exchange": "kraken",
-        "symbol": "TON/USD"
       },
       {
         "exchange": "kraken",
@@ -6480,6 +7028,118 @@
       {
         "exchange": "woo",
         "symbol": "TON/USDT"
+      },
+      {
+        "exchange": "xt",
+        "symbol": "TON/USDT"
+      }
+    ]
+  },
+  {
+    "feed": {
+      "category": 1,
+      "name": "TRUMP/USD"
+    },
+    "sources": [
+      {
+        "exchange": "bigone",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "TRUMP/USDC"
+      },
+      {
+        "exchange": "binance",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "bingx",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "bitmart",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "bitmex",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "bitrue",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "bybit",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "coinex",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "TRUMP/USD"
+      },
+      {
+        "exchange": "cryptocom",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "digifinex",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "exmo",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "gateio",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "TRUMP/USD"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "TRUMP/USDC"
+      },
+      {
+        "exchange": "kraken",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "kucoin",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "TRUMP/USD"
+      },
+      {
+        "exchange": "phemex",
+        "symbol": "TRUMP/USDT"
+      },
+      {
+        "exchange": "poloniex",
+        "symbol": "TRUMP/USDT"
       }
     ]
   },
@@ -6500,10 +7160,6 @@
       {
         "exchange": "ascendex",
         "symbol": "TRX/USD"
-      },
-      {
-        "exchange": "binance",
-        "symbol": "TRX/USDT"
       },
       {
         "exchange": "binance",
@@ -6562,6 +7218,10 @@
         "symbol": "TRX/USDC"
       },
       {
+        "exchange": "bitso",
+        "symbol": "TRX/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "TRX/USDT"
       },
@@ -6618,10 +7278,6 @@
         "symbol": "TRX/USDT"
       },
       {
-        "exchange": "kucoin",
-        "symbol": "TRX/USDC"
-      },
-      {
         "exchange": "latoken",
         "symbol": "TRX/USDT"
       },
@@ -6644,6 +7300,10 @@
       {
         "exchange": "okx",
         "symbol": "TRX/USDT"
+      },
+      {
+        "exchange": "okx",
+        "symbol": "TRX/USDC"
       },
       {
         "exchange": "p2b",
@@ -6707,11 +7367,11 @@
       },
       {
         "exchange": "bingx",
-        "symbol": "UNI/USDC"
+        "symbol": "UNI/USDT"
       },
       {
         "exchange": "bingx",
-        "symbol": "UNI/USDT"
+        "symbol": "UNI/USDC"
       },
       {
         "exchange": "fmfwio",
@@ -6754,6 +7414,10 @@
         "symbol": "UNI/USD"
       },
       {
+        "exchange": "bitso",
+        "symbol": "UNI/USD"
+      },
+      {
         "exchange": "bybit",
         "symbol": "UNI/USDT"
       },
@@ -6775,11 +7439,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "UNI/USD"
+        "symbol": "UNI/USDT"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "UNI/USDT"
+        "symbol": "UNI/USD"
       },
       {
         "exchange": "digifinex",
@@ -6816,10 +7480,6 @@
       {
         "exchange": "kraken",
         "symbol": "UNI/USD"
-      },
-      {
-        "exchange": "kucoin",
-        "symbol": "UNI/USDT"
       },
       {
         "exchange": "latoken",
@@ -6910,10 +7570,6 @@
         "symbol": "USDC/USDT"
       },
       {
-        "exchange": "bybit",
-        "symbol": "USDC/USDT"
-      },
-      {
         "exchange": "coinex",
         "symbol": "USDC/USDT"
       },
@@ -6930,8 +7586,16 @@
         "symbol": "USDC/USD"
       },
       {
+        "exchange": "gateio",
+        "symbol": "USDC/USDT"
+      },
+      {
         "exchange": "gemini",
         "symbol": "USDC/USD"
+      },
+      {
+        "exchange": "huobi",
+        "symbol": "USDC/USDT"
       },
       {
         "exchange": "kraken",
@@ -6950,15 +7614,7 @@
         "symbol": "USDC/USDT"
       },
       {
-        "exchange": "mexc",
-        "symbol": "USDC/USDT"
-      },
-      {
         "exchange": "okx",
-        "symbol": "USDC/USDT"
-      },
-      {
-        "exchange": "p2b",
         "symbol": "USDC/USDT"
       },
       {
@@ -7107,11 +7763,11 @@
       },
       {
         "exchange": "bitrue",
-        "symbol": "WIF/USDC"
+        "symbol": "WIF/USDT"
       },
       {
         "exchange": "bitrue",
-        "symbol": "WIF/USDT"
+        "symbol": "WIF/USDC"
       },
       {
         "exchange": "bitstamp",
@@ -7168,6 +7824,10 @@
       {
         "exchange": "gemini",
         "symbol": "WIF/USD"
+      },
+      {
+        "exchange": "hitbtc",
+        "symbol": "WIF/USDT"
       },
       {
         "exchange": "huobi",
@@ -7290,10 +7950,6 @@
         "symbol": "XDC/USDT"
       },
       {
-        "exchange": "mexc",
-        "symbol": "XDC/USDT"
-      },
-      {
         "exchange": "phemex",
         "symbol": "XDC/USDT"
       },
@@ -7323,10 +7979,6 @@
       },
       {
         "exchange": "binance",
-        "symbol": "XLM/USDT"
-      },
-      {
-        "exchange": "binance",
         "symbol": "XLM/USDC"
       },
       {
@@ -7347,11 +7999,11 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "XLM/USDT"
+        "symbol": "XLM/USD"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "XLM/USD"
+        "symbol": "XLM/USDT"
       },
       {
         "exchange": "bitget",
@@ -7371,6 +8023,10 @@
       },
       {
         "exchange": "bitstamp",
+        "symbol": "XLM/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "XLM/USD"
       },
       {
@@ -7450,6 +8106,10 @@
         "symbol": "XLM/USDT"
       },
       {
+        "exchange": "mexc",
+        "symbol": "XLM/USDT"
+      },
+      {
         "exchange": "okx",
         "symbol": "XLM/USDT"
       },
@@ -7460,10 +8120,6 @@
       {
         "exchange": "p2b",
         "symbol": "XLM/USD"
-      },
-      {
-        "exchange": "p2b",
-        "symbol": "XLM/USDT"
       },
       {
         "exchange": "phemex",
@@ -7506,10 +8162,6 @@
         "symbol": "XRP/USDT"
       },
       {
-        "exchange": "ascendex",
-        "symbol": "XRP/USD"
-      },
-      {
         "exchange": "binance",
         "symbol": "XRP/USDC"
       },
@@ -7531,19 +8183,19 @@
       },
       {
         "exchange": "bitfinex",
-        "symbol": "XRP/USD"
+        "symbol": "XRP/USDT"
       },
       {
         "exchange": "bitfinex",
-        "symbol": "XRP/USDT"
-      },
-      {
-        "exchange": "bitget",
-        "symbol": "XRP/USDT"
+        "symbol": "XRP/USD"
       },
       {
         "exchange": "bitget",
         "symbol": "XRP/USDC"
+      },
+      {
+        "exchange": "bitget",
+        "symbol": "XRP/USDT"
       },
       {
         "exchange": "bitmart",
@@ -7558,15 +8210,19 @@
         "symbol": "XRP/USDC"
       },
       {
-        "exchange": "bitrue",
-        "symbol": "XRP/USDT"
-      },
-      {
         "exchange": "bitstamp",
         "symbol": "XRP/USD"
       },
       {
         "exchange": "bitstamp",
+        "symbol": "XRP/USDT"
+      },
+      {
+        "exchange": "bitso",
+        "symbol": "XRP/USD"
+      },
+      {
+        "exchange": "bitso",
         "symbol": "XRP/USDT"
       },
       {
@@ -7595,11 +8251,11 @@
       },
       {
         "exchange": "cryptocom",
-        "symbol": "XRP/USDT"
+        "symbol": "XRP/USD"
       },
       {
         "exchange": "cryptocom",
-        "symbol": "XRP/USD"
+        "symbol": "XRP/USDT"
       },
       {
         "exchange": "digifinex",
@@ -7611,11 +8267,11 @@
       },
       {
         "exchange": "exmo",
-        "symbol": "XRP/USD"
+        "symbol": "XRP/USDC"
       },
       {
-        "exchange": "gateio",
-        "symbol": "XRP/USDT"
+        "exchange": "exmo",
+        "symbol": "XRP/USD"
       },
       {
         "exchange": "gateio",
@@ -7666,12 +8322,16 @@
         "symbol": "XRP/USDT"
       },
       {
-        "exchange": "mexc",
+        "exchange": "lbank",
         "symbol": "XRP/USDC"
       },
       {
         "exchange": "mexc",
         "symbol": "XRP/USDT"
+      },
+      {
+        "exchange": "mexc",
+        "symbol": "XRP/USDC"
       },
       {
         "exchange": "okx",
