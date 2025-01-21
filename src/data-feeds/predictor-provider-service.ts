@@ -588,26 +588,46 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
-  private removeOutliers(prices: PriceInfo[], sigmas: number = 1.5): PriceInfo[] {
+  private removeOutliers(prices: PriceInfo[], madThreshold: number = 2.0): PriceInfo[] {
     // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
-    // Calculate mean
-    const mean = prices.reduce((sum, p) => sum + p.price, 0) / prices.length;
+    // Calculate median
+    const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
+    const median = sortedPrices[Math.floor(sortedPrices.length / 2)].price;
 
-    // Calculate standard deviation
-    const squaredDiffs = prices.map(p => Math.pow(p.price - mean, 2));
-    const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / prices.length;
-    const stdDev = Math.sqrt(variance);
+    // Calculate Median Absolute Deviation (MAD)
+    const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
+    const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
+    const scaledMAD = mad * 1.4826;
+    const threshold = madThreshold * scaledMAD;
 
-    // Filter out prices more than N standard deviations from mean
-    const threshold = sigmas * stdDev;
-    const filteredPrices = prices.filter(p => Math.abs(p.price - mean) <= threshold);
+    // Log statistics before filtering
+    this.logger.debug(`Outlier detection statistics:`);
+    this.logger.debug(`  Median price: ${median}`);
+    this.logger.debug(`  MAD: ${mad}`);
+    this.logger.debug(`  Scaled MAD: ${scaledMAD}`);
+    this.logger.debug(`  Threshold (${madThreshold} MADs): ±${threshold}`);
+    this.logger.debug(`  Acceptable range: ${median - threshold} to ${median + threshold}`);
+
+    // Log each price's deviation
+    prices.forEach(p => {
+      const deviation = Math.abs(p.price - median);
+      const deviationMADs = deviation / scaledMAD;
+      this.logger.debug(
+        `  ${p.exchange}: ${p.price} (${deviation > threshold ? "OUTLIER" : "KEPT"}) ` +
+          `deviation: ${deviation.toFixed(4)} (${deviationMADs.toFixed(2)} MADs)`
+      );
+    });
+
+    // Filter out prices more than N MADs from median
+    const filteredPrices = prices.filter(p => Math.abs(p.price - median) <= threshold);
 
     if (filteredPrices.length < prices.length) {
-      this.logger.debug(`Removed ${prices.length - filteredPrices.length} outliers using ${sigmas}-sigma rule`);
-      this.logger.debug(`Original prices: ${prices.map(p => `${p.price} (${p.exchange})`).join(", ")}`);
-      this.logger.debug(`Filtered prices: ${filteredPrices.map(p => `${p.price} (${p.exchange})`).join(", ")}`);
+      this.logger.debug(
+        `Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
+          `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
+      );
     }
 
     return filteredPrices;
