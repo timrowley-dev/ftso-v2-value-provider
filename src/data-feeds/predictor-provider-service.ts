@@ -293,7 +293,9 @@ export class PredictorFeed implements BaseDataFeed {
     const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD";
 
     if (!isStablecoin) {
-      this.logger.debug(`Processing feed: ${symbol}`);
+      this.logger.log(`\n${"=".repeat(50)}`);
+      this.logger.log(`Starting price calculation for ${symbol}`);
+      this.logger.log(`${"-".repeat(50)}`);
     }
 
     const config = this.config.find(config => feedsEqual(config.feed, feedId));
@@ -363,6 +365,12 @@ export class PredictorFeed implements BaseDataFeed {
           timestamp: Date.now(),
         });
       }
+
+      if (!isStablecoin) {
+        this.logger.log(`Final price for ${symbol}: ${price}`);
+        this.logger.log(`${"=".repeat(50)}\n`);
+      }
+
       return price;
     }
 
@@ -407,9 +415,17 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     const filteredPrices = this.removeOutliers(convertedPrices);
-    return PRICE_CALCULATION_METHOD === "weighted-median"
-      ? this.weightedMedian(filteredPrices, symbol)
-      : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+    const result =
+      PRICE_CALCULATION_METHOD === "weighted-median"
+        ? this.weightedMedian(filteredPrices, symbol)
+        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+
+    if (!isStablecoin) {
+      this.logger.log(`Final price for ${symbol}: ${result}`);
+      this.logger.log(`${"=".repeat(50)}\n`);
+    }
+
+    return result;
   }
 
   private weightedMedian(prices: PriceInfo[], symbol?: string, isStablecoin: boolean = false): number {
@@ -601,34 +617,35 @@ export class PredictorFeed implements BaseDataFeed {
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
     const scaledMAD = mad * 1.4826;
     const threshold = madThreshold * scaledMAD;
-
-    // Add percentage threshold for clarity in logs
     const percentageThreshold = (threshold / median) * 100;
 
-    // Enhanced logging with percentage deviations
-    this.logger.debug(`Outlier detection statistics:`);
-    this.logger.debug(`  Median price: ${median}`);
+    // Move key statistics to info level
+    this.logger.log(
+      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}%`
+    );
+
+    // Keep detailed statistics at debug level
     this.logger.debug(`  MAD: ${mad}`);
     this.logger.debug(`  Scaled MAD: ${scaledMAD}`);
-    this.logger.debug(`  Threshold (${madThreshold} MADs): ±${threshold} (±${percentageThreshold.toFixed(3)}%)`);
+    this.logger.debug(`  Absolute threshold: ±${threshold}`);
     this.logger.debug(`  Acceptable range: ${median - threshold} to ${median + threshold}`);
 
-    // Log each price's deviation with percentage
+    // Log each price's deviation with percentage at info level if it's an outlier
     prices.forEach(p => {
       const deviation = Math.abs(p.price - median);
-      const deviationMADs = deviation / scaledMAD;
       const deviationPercent = (deviation / median) * 100;
-      this.logger.debug(
-        `  ${p.exchange}: ${p.price} (${deviation > threshold ? "OUTLIER" : "KEPT"}) ` +
-          `deviation: ${deviation.toFixed(4)} (${deviationMADs.toFixed(2)} MADs, ${deviationPercent.toFixed(3)}%)`
-      );
+      if (deviation > threshold) {
+        this.logger.log(`  OUTLIER: ${p.exchange} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`);
+      } else {
+        this.logger.debug(`  KEPT: ${p.exchange} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`);
+      }
     });
 
     // Filter out prices more than N MADs from median
     const filteredPrices = prices.filter(p => Math.abs(p.price - median) <= threshold);
 
     if (filteredPrices.length < prices.length) {
-      this.logger.debug(
+      this.logger.log(
         `Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
           `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
       );
