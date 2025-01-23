@@ -7054,10 +7054,6 @@
         "symbol": "TRUMP/USDT"
       },
       {
-        "exchange": "bingx",
-        "symbol": "TRUMP/USDT"
-      },
-      {
         "exchange": "bitget",
         "symbol": "TRUMP/USDT"
       },
@@ -7066,19 +7062,11 @@
         "symbol": "TRUMP/USDT"
       },
       {
-        "exchange": "bitmex",
-        "symbol": "TRUMP/USDT"
-      },
-      {
         "exchange": "bitrue",
         "symbol": "TRUMP/USDT"
       },
       {
         "exchange": "bybit",
-        "symbol": "TRUMP/USDT"
-      },
-      {
-        "exchange": "coinex",
         "symbol": "TRUMP/USDT"
       },
       {
