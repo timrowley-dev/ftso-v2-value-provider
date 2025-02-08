@@ -21,12 +21,9 @@ import { FixedFeed } from "./data-feeds/fixed-feed";
         } else if (process.env.VALUE_PROVIDER_IMPL == "random") {
           dataFeed = new RandomFeed();
         } else {
-          // const ccxtFeed = new CcxtFeed();
-          // await ccxtFeed.start();
-          // dataFeed = ccxtFeed;
-          const predictorFeed = new PredictorFeed();
-          await predictorFeed.start();
-          dataFeed = predictorFeed;
+          const feed = new PredictorFeed();
+          await feed.start();
+          dataFeed = feed;
         }
 
         const service = new ExampleProviderService(dataFeed);

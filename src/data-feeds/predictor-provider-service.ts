@@ -42,8 +42,26 @@ interface PriceInfo {
 }
 
 interface PredictionResponse {
-  prediction: number | null;
-  seconds_remaining: number;
+  [symbol: string]: {
+    symbol: string;
+    model: string;
+    weighted_predicted_price: number;
+    average_coefficient: number;
+    trend: "UP" | "DOWN";
+    exchange_count: number;
+    total_samples: number;
+    exchange_predictions: {
+      [exchange: string]: {
+        price: number;
+        used_fallback: boolean;
+        fallback_reason: string;
+      };
+    };
+    analysis_timestamp: number;
+    used_fallback: boolean;
+    fallback_reason: string;
+    converted_to_usd: boolean;
+  };
 }
 
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
@@ -69,6 +87,7 @@ export class PredictorFeed implements BaseDataFeed {
   async start() {
     this.config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
+    this.logger.log(`Predictor Config: HOST: ${process.env.PREDICTOR_HOST} PORT: ${process.env.PREDICTOR_PORT}`);
 
     for (const feed of this.config) {
       for (const source of feed.sources) {
@@ -127,19 +146,19 @@ export class PredictorFeed implements BaseDataFeed {
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
     let price: number;
-
-    if ([].includes(feed.name) || votingRoundId === 0) {
+    const excludedFeedNames = [];
+    // TODO: remove votingRoundId === 0?
+    if (excludedFeedNames.includes(feed.name) || votingRoundId === 0) {
       price = await this.getFeedPrice(feed, votingRoundId);
-      this.logger.log(`CCXT (ONLY) PRICE: [${feed.name}] ${price}`);
     } else {
       const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
       let predictorPrice: number | null = null;
-
       if (process.env.PREDICTOR_ENABLED === "true") {
-        predictorPrice = await this.getFeedPricePredictor(feed, votingRoundId);
+        predictorPrice = await this.getFeedPricePredictor(feed);
       }
 
       price = predictorPrice || ccxtPrice;
+
       this.logger.log(
         `[${feed.name}] Using ${predictorPrice ? "predictor" : "CCXT"} price: ${price} ` +
           `(CCXT: ${ccxtPrice}, Predictor: ${predictorPrice || "N/A"})`
@@ -278,10 +297,10 @@ export class PredictorFeed implements BaseDataFeed {
     });
 
     this.prices.set(symbol, prices);
-    this.logger.debug(
-      `[${exchangeName}] ${symbol} Spot price updated: ${price} ` +
-        `(volume: ${ticker.baseVolume || 0}, quote: ${symbol.endsWith("USDT") ? "USDT" : symbol.endsWith("USDC") ? "USDC" : "other"})`
-    );
+    // this.logger.debug(
+    //   `[${exchangeName}] ${symbol} Spot price updated: ${price} ` +
+    //     `(volume: ${ticker.baseVolume || 0}, quote: ${symbol.endsWith("USDT") ? "USDT" : symbol.endsWith("USDC") ? "USDC" : "other"})`
+    // );
   }
 
   private async getFeedPrice(
@@ -535,17 +554,39 @@ export class PredictorFeed implements BaseDataFeed {
     return fallbackPrice;
   }
 
-  private async getFeedPricePredictor(feedId: FeedId, votingRound: number): Promise<number> {
+  private async getFeedPricePredictor(feedId: FeedId): Promise<number> {
+    const url = process.env.PREDICTOR_URL || "http://localhost";
+    const port = process.env.PREDICTOR_PORT || 8000;
     const baseSymbol = feedId.name.split("/")[0];
-    const axiosURL = `http://${process.env.PREDICTOR_HOST}:${process.env.PREDICTOR_PORT}/GetPrediction/${baseSymbol}/${votingRound}/2000`;
-    this.logger.debug(`axios URL ${axiosURL}`);
+    const model = process.env.PREDICTOR_MODEL || "linear";
+    const lookback = process.env.PREDICTOR_LOOKBACK || 90;
+    const convertToUsd = process.env.PREDICTOR_CONVERT_TO_USD || true;
+    const baseURL = `${url}${port ? `:${port}` : ""}/analyze`;
+
+    this.logger.log(`PREDICTOR URL: ${baseURL}`);
+
     try {
-      const request: AxiosResponse<PredictionResponse> = await axios.get(axiosURL, { timeout: 15000 });
+      const request: AxiosResponse<PredictionResponse> = await axios.get(baseURL, {
+        params: {
+          symbols: baseSymbol,
+          model: model,
+          lookback: lookback,
+          convert_to_usd: convertToUsd,
+        },
+        timeout: 15000,
+      });
       if (request && request.data) {
-        const prediction = request.data.prediction;
-        if (prediction == 0) return null;
-        this.logger.debug(`Price from pred: ${prediction}`);
-        return prediction;
+        const prediction = request.data[baseSymbol];
+        const price = prediction.weighted_predicted_price;
+        if (price == 0 || price == null) return null;
+
+        if (prediction.used_fallback) {
+          this.logger.warn(`${baseSymbol} used fallback: ${prediction.fallback_reason}`);
+        }
+        this.logger.log(
+          `baseSymbol: ${baseSymbol}, prediction: ${price}, model: ${model}, lookback: ${lookback}, convertToUsd: ${convertToUsd}, baseURL: ${baseURL}`
+        );
+        return price;
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.code === "ECONNABORTED") {
@@ -555,7 +596,7 @@ export class PredictorFeed implements BaseDataFeed {
       }
       return null;
     }
-    this.logger.debug(`Price from pred was null`);
+    this.logger.debug(`Price from predictor was null`);
     return null;
   }
 
