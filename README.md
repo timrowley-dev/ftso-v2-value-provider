@@ -5,6 +5,7 @@ This is a sample implementation of an FTSOv2 feed value provider that serves val
 ## Configuration
 
 The provider behavior can be adjusted via the `VALUE_PROVIDER_IMPL` environment variable:
+
 - `fixed`: returns a fixed value.
 - `random`: returns random values.
 - Leave blank to use the default CCXT-based values.
@@ -51,9 +52,7 @@ curl -X 'POST' \
 ```json
 {
   "votingRoundId": 0,
-  "data": [
-    { "feed": { "category": 1, "name": "BTC/USD" }, "value": 71287.34508311428 }
-  ]
+  "data": [{ "feed": { "category": 1, "name": "BTC/USD" }, "value": 71287.34508311428 }]
 }
 ```
 
@@ -62,23 +61,13 @@ curl -X 'POST' \
 Use the endpoint `/feed-values/` to get the most recent feed values without specifying a voting round.
 
 ```bash
-curl -X 'POST' \
-  'http://localhost:3101/feed-values/' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "feeds": [
-    { "category": 1, "name" : "BTC/USD" }
-  ]
-}'
+curl -X 'POST' 'http://localhost:3102/feed-values/' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"feeds": [{ "category": 1, "name" : "BTC/USD" }]}'
 ```
 
 **Example Response:**
 
 ```json
 {
-  "data": [
-    { "feed": { "category": 1, "name": "BTC/USD" }, "value": 71285.74004472858 }
-  ]
+  "data": [{ "feed": { "category": 1, "name": "BTC/USD" }, "value": 71285.74004472858 }]
 }
 ```

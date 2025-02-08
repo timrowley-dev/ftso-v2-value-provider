@@ -555,11 +555,11 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private async getFeedPricePredictor(feedId: FeedId): Promise<number> {
-    const url = process.env.PREDICTOR_URL || "http://localhost";
+    const url = process.env.PREDICTOR_HOST || "http://localhost";
     const port = process.env.PREDICTOR_PORT || 8000;
     const baseSymbol = feedId.name.split("/")[0];
     const model = process.env.PREDICTOR_MODEL || "linear";
-    const lookback = process.env.PREDICTOR_LOOKBACK || 90;
+    const lookback = process.env.PREDICTOR_LOOKBACK || 60;
     const convertToUsd = process.env.PREDICTOR_CONVERT_TO_USD || true;
     const baseURL = `${url}${port ? `:${port}` : ""}/analyze`;
 
