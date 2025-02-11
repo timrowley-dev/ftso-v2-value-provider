@@ -136,11 +136,18 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
+    const startTime = Date.now();
     const results: FeedValueData[] = [];
+
     for (const feed of feeds) {
       const value = await this.getValue(feed, votingRoundId);
       results.push(value);
     }
+
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    this.logger.log(`Completed voting round ${votingRoundId} in ${duration}ms for ${feeds.length} feeds`);
+
     return results;
   }
 
