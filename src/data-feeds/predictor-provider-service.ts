@@ -387,7 +387,7 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     // Apply outlier removal once here
-    const filteredPrices = this.removeOutliers(priceInfos);
+    const filteredPrices = this.removeOutliers(priceInfos, 3.0, 0.5, false);
 
     // For stablecoin feeds or when skipping conversion, use filtered prices directly
     if (isStablecoin || skipStablecoinConversion) {
@@ -666,7 +666,8 @@ export class PredictorFeed implements BaseDataFeed {
   private removeOutliers(
     prices: PriceInfo[],
     madThreshold: number = 3.0,
-    minPercentThreshold: number = 0.5
+    minPercentThreshold: number = 0.5,
+    skipLogging: boolean = false
   ): PriceInfo[] {
     if (prices.length < 3) return prices;
 
@@ -679,68 +680,62 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Calculate thresholds
     const madBasedThreshold = madThreshold * mad;
-
-    // Calculate minimum threshold (0.5% = 0.005)
-    const minThresholdDecimal = minPercentThreshold / 100; // Convert 0.5 to 0.005
-    const minThreshold = median * minThresholdDecimal; // Apply to median price
-
-    // Use the larger of the two thresholds
+    const minThresholdDecimal = minPercentThreshold / 100;
+    const minThreshold = median * minThresholdDecimal;
     const threshold = Math.max(madBasedThreshold, minThreshold);
 
-    // Debug logging for threshold calculation
-    this.logger.debug(`  MAD: ${mad}`);
-    this.logger.debug(`  MAD-based threshold: ${madBasedThreshold}`);
-    this.logger.debug(`  Min percent threshold (decimal): ${minThresholdDecimal}`);
-    this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
-    this.logger.debug(`  Final threshold: ${threshold}`);
-    this.logger.debug(`  Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`);
+    // Only log if not skipped
+    if (!skipLogging) {
+      // Debug logging for threshold calculation
+      this.logger.debug(`  MAD: ${mad}`);
+      this.logger.debug(`  MAD-based threshold: ${madBasedThreshold}`);
+      this.logger.debug(`  Min percent threshold (decimal): ${minThresholdDecimal}`);
+      this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
+      this.logger.debug(`  Final threshold: ${threshold}`);
+      this.logger.debug(`  Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`);
 
-    // Calculate the percentage for logging
-    const percentageThreshold = (threshold / median) * 100;
+      // Calculate the percentage for logging
+      const percentageThreshold = (threshold / median) * 100;
 
-    this.logger.log(
-      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
-    );
+      this.logger.log(
+        `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
+      );
 
-    // Create a formatted price list with the correct threshold
-    const priceList = prices.map(p => {
-      const deviation = Math.abs(p.price - median);
-      const deviationPercent = (deviation / median) * 100;
-      const isOutlier = deviation > threshold; // Use the threshold that includes the minimum
-      return {
-        status: isOutlier ? "OUTLIER" : "KEPT",
+      // Create a formatted price list with the correct threshold
+      const priceList = prices.map(p => ({
+        status: Math.abs(p.price - median) > threshold ? "OUTLIER" : "KEPT",
         exchange: p.exchange,
         price: p.price,
-        deviationPercent,
-      };
-    });
+        deviationPercent: (Math.abs(p.price - median) / median) * 100,
+      }));
 
-    // Sort by status (KEPT first) then by exchange name
-    priceList.sort((a, b) => {
-      if (a.status !== b.status) return a.status === "KEPT" ? -1 : 1;
-      return a.exchange.localeCompare(b.exchange);
-    });
+      // Sort by status (KEPT first) then by exchange name
+      priceList.sort((a, b) => {
+        if (a.status !== b.status) return a.status === "KEPT" ? -1 : 1;
+        return a.exchange.localeCompare(b.exchange);
+      });
 
-    // Log all prices with clear separation between kept and outliers
-    this.logger.log(`Price deviations from median:`);
-    let currentStatus = "";
-    priceList.forEach(p => {
-      if (p.status !== currentStatus) {
-        currentStatus = p.status;
-        this.logger.log(`  ${currentStatus}:`);
-      }
-      this.logger.log(
-        `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
-      );
-    });
+      // Log all prices with clear separation between kept and outliers
+      this.logger.log(`Price deviations from median:`);
+      let currentStatus = "";
+      priceList.forEach(p => {
+        if (p.status !== currentStatus) {
+          currentStatus = p.status;
+          this.logger.log(`  ${currentStatus}:`);
+        }
+        this.logger.log(
+          `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
+        );
+      });
+    }
 
     // Filter out prices more than threshold from median
     const filteredPrices = prices.filter(p => Math.abs(p.price - median) <= threshold);
 
-    if (filteredPrices.length < prices.length) {
+    if (!skipLogging && filteredPrices.length < prices.length) {
       this.logger.log(
         `Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
-          `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
+        `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
       );
     }
 
