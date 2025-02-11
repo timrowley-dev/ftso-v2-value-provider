@@ -677,19 +677,25 @@ export class PredictorFeed implements BaseDataFeed {
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
-    // Calculate threshold and ensure it's at least the minimum percentage
+    // Calculate thresholds
     const madBasedThreshold = madThreshold * mad;
-    const minThreshold = (median * minPercentThreshold) / 100; // This converts 0.5 to 0.005
+
+    // Calculate minimum threshold (0.5% = 0.005)
+    const minThresholdDecimal = minPercentThreshold / 100; // Convert 0.5 to 0.005
+    const minThreshold = median * minThresholdDecimal; // Apply to median price
+
+    // Use the larger of the two thresholds
     const threshold = Math.max(madBasedThreshold, minThreshold);
 
     // Debug logging for threshold calculation
     this.logger.debug(`  MAD: ${mad}`);
     this.logger.debug(`  MAD-based threshold: ${madBasedThreshold}`);
+    this.logger.debug(`  Min percent threshold (decimal): ${minThresholdDecimal}`);
     this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
     this.logger.debug(`  Final threshold: ${threshold}`);
     this.logger.debug(`  Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`);
 
-    // Calculate the actual percentage for logging (no need to multiply by 100 again)
+    // Calculate the percentage for logging
     const percentageThreshold = (threshold / median) * 100;
 
     this.logger.log(
