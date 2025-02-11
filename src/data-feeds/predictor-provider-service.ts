@@ -82,7 +82,7 @@ export class PredictorFeed implements BaseDataFeed {
 
   // Add at class level
   private readonly stablecoinRateCache = new Map<string, { rate: number; timestamp: number }>();
-  private readonly CACHE_TTL_MS = 2000; // 2 second cache
+  private readonly CACHE_TTL_MS = 10000; // Increase to 10 seconds
 
   async start() {
     this.config = this.loadConfig();
@@ -322,12 +322,21 @@ export class PredictorFeed implements BaseDataFeed {
   private async getFeedPrice(
     feedId: FeedId,
     votingRoundId: number,
-    skipStablecoinConversion: boolean = false
+    skipStablecoinConversion: boolean = false,
+    skipLogging: boolean = false
   ): Promise<number> {
     const symbol = feedId.name;
     const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD";
 
-    if (!isStablecoin) {
+    // Check cache first for stablecoins
+    if (isStablecoin && !skipStablecoinConversion) {
+      const cached = this.stablecoinRateCache.get(symbol);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+        return cached.rate;
+      }
+    }
+
+    if (!isStablecoin && !skipLogging) {
       this.logger.log(`\n${"=".repeat(50)}`);
       this.logger.log(`Starting price calculation for ${symbol}`);
       this.logger.log(`${"-".repeat(50)}`);
@@ -397,13 +406,13 @@ export class PredictorFeed implements BaseDataFeed {
           : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
 
       if (isStablecoin && !skipStablecoinConversion) {
-        this.stablecoinRateCache.set(feedId.name, {
+        this.stablecoinRateCache.set(symbol, {
           rate: price,
           timestamp: Date.now(),
         });
       }
 
-      if (!isStablecoin) {
+      if (!isStablecoin && !skipLogging) {
         this.logger.log(`Final price for ${symbol}: ${price}`);
         this.logger.log(`${"=".repeat(50)}\n`);
       }
@@ -415,33 +424,13 @@ export class PredictorFeed implements BaseDataFeed {
     const convertedPrices: PriceInfo[] = [];
     for (const info of filteredPrices) {
       if (info.quoteAsset === "USDT") {
-        const cached = this.stablecoinRateCache.get("USDT/USD");
-        let usdtPrice: number;
-
-        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
-          usdtPrice = cached.rate;
-          this.logger.debug(`Using cached USDT rate: ${usdtPrice}`);
-        } else {
-          usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true);
-          this.logger.debug(`Fetched fresh USDT rate: ${usdtPrice}`);
-        }
-
+        const usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true, true);
         convertedPrices.push({
           ...info,
           price: info.price * usdtPrice,
         });
       } else if (info.quoteAsset === "USDC") {
-        const cached = this.stablecoinRateCache.get("USDC/USD");
-        let usdcPrice: number;
-
-        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
-          usdcPrice = cached.rate;
-          this.logger.debug(`Using cached USDC rate: ${usdcPrice}`);
-        } else {
-          usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true);
-          this.logger.debug(`Fetched fresh USDC rate: ${usdcPrice}`);
-        }
-
+        const usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true, true);
         convertedPrices.push({
           ...info,
           price: info.price * usdcPrice,
@@ -457,7 +446,7 @@ export class PredictorFeed implements BaseDataFeed {
         ? this.weightedMedian(convertedPrices, symbol)
         : convertedPrices.reduce((a, b) => a + b.price, 0) / convertedPrices.length;
 
-    if (!isStablecoin) {
+    if (!isStablecoin && !skipLogging) {
       this.logger.log(`Final price for ${symbol}: ${result}`);
       this.logger.log(`${"=".repeat(50)}\n`);
     }
@@ -735,7 +724,7 @@ export class PredictorFeed implements BaseDataFeed {
     if (!skipLogging && filteredPrices.length < prices.length) {
       this.logger.log(
         `Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
-        `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
+          `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
       );
     }
 
