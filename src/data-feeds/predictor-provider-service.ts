@@ -325,110 +325,114 @@ export class PredictorFeed implements BaseDataFeed {
     skipStablecoinConversion: boolean = false,
     skipLogging: boolean = false
   ): Promise<number> {
-    const symbol = feedId.name;
-    const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD";
+    try {
+      const symbol = feedId.name;
+      const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD";
 
-    // Check cache first for stablecoins
-    if (isStablecoin && !skipStablecoinConversion) {
-      const cached = this.stablecoinRateCache.get(symbol);
-      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
-        return cached.rate;
+      // Check cache first for stablecoins
+      if (isStablecoin && !skipStablecoinConversion) {
+        const cached = this.stablecoinRateCache.get(symbol);
+        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+          return cached.rate;
+        }
       }
-    }
 
-    if (!isStablecoin && !skipLogging) {
-      this.logger.log(`\n${"=".repeat(50)}`);
-      this.logger.log(`Starting price calculation for ${symbol}`);
-      this.logger.log(`${"-".repeat(50)}`);
-    }
-
-    const config = this.config.find(config => feedsEqual(config.feed, feedId));
-    if (!config) {
-      this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
-      return undefined;
-    }
-
-    // Get raw prices and group by quote asset
-    const pricesByQuote: { [quote: string]: PriceInfo[] } = {
-      USDT: [],
-      USDC: [],
-      USD: [],
-    };
-
-    // Collect prices and group by quote asset
-    for (const source of config.sources) {
-      const prices = this.prices.get(source.symbol);
-      if (!prices) continue;
-
-      const info = prices.get(source.exchange);
-      if (!info) continue;
-
-      const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
-      if (Date.now() - info.time > staleness) continue;
-
-      const quoteAsset = info.quoteAsset || "USD";
-      pricesByQuote[quoteAsset].push(info);
-    }
-
-    // Get conversion rates once per quote asset
-    const conversionRates: { [quote: string]: number } = {};
-    if (!skipStablecoinConversion && !isStablecoin) {
-      if (pricesByQuote.USDT.length > 0) {
-        conversionRates.USDT = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true, true);
+      if (!isStablecoin && !skipLogging) {
+        this.logger.log(`\n${"=".repeat(50)}`);
+        this.logger.log(`Starting price calculation for ${symbol}`);
+        this.logger.log(`${"-".repeat(50)}`);
       }
-      if (pricesByQuote.USDC.length > 0) {
-        conversionRates.USDC = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true, true);
+
+      const config = this.config.find(config => feedsEqual(config.feed, feedId));
+      if (!config) {
+        this.logger.warn(`No config found for ${JSON.stringify(feedId)}`);
+        return undefined;
       }
-      conversionRates.USD = 1;
+
+      // Get raw prices and group by quote asset
+      const pricesByQuote: { [quote: string]: PriceInfo[] } = {
+        USDT: [],
+        USDC: [],
+        USD: [],
+      };
+
+      // Collect prices and group by quote asset
+      for (const source of config.sources) {
+        const prices = this.prices.get(source.symbol);
+        if (!prices) continue;
+
+        const info = prices.get(source.exchange);
+        if (!info) continue;
+
+        const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
+        if (Date.now() - info.time > staleness) continue;
+
+        const quoteAsset = info.quoteAsset || "USD";
+        pricesByQuote[quoteAsset].push(info);
+      }
+
+      // Get conversion rates once per quote asset
+      const conversionRates: { [quote: string]: number } = {};
+      if (!skipStablecoinConversion && !isStablecoin) {
+        if (pricesByQuote.USDT.length > 0) {
+          conversionRates.USDT = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true, true);
+        }
+        if (pricesByQuote.USDC.length > 0) {
+          conversionRates.USDC = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true, true);
+        }
+        conversionRates.USD = 1;
+      }
+
+      // Convert all prices to USD
+      const allPrices: PriceInfo[] = [];
+      for (const [quote, prices] of Object.entries(pricesByQuote)) {
+        if (prices.length === 0) continue;
+
+        const convertedPrices = prices.map(info => ({
+          ...info,
+          price: info.price * (skipStablecoinConversion ? 1 : conversionRates[quote] || 1),
+        }));
+        allPrices.push(...convertedPrices);
+      }
+
+      // Apply outlier removal
+      const filteredPrices = this.removeOutliers(allPrices, 3.0, 0.5, false);
+
+      // Calculate final price
+      const result =
+        PRICE_CALCULATION_METHOD === "weighted-median"
+          ? this.weightedMedian(filteredPrices, symbol)
+          : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+
+      if (isStablecoin && !skipStablecoinConversion) {
+        this.stablecoinRateCache.set(symbol, {
+          rate: result,
+          timestamp: Date.now(),
+        });
+      }
+
+      if (!isStablecoin && !skipLogging) {
+        this.logger.log(`Final price for ${symbol}: ${result}`);
+        this.logger.log(`${"=".repeat(50)}\n`);
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error(`Error getting price for ${feedId.name}: ${error.message}`);
+      return 0; // or other appropriate default/fallback value
     }
-
-    // Convert all prices to USD
-    const allPrices: PriceInfo[] = [];
-    for (const [quote, prices] of Object.entries(pricesByQuote)) {
-      if (prices.length === 0) continue;
-
-      const convertedPrices = prices.map(info => ({
-        ...info,
-        price: info.price * (skipStablecoinConversion ? 1 : conversionRates[quote] || 1),
-      }));
-      allPrices.push(...convertedPrices);
-    }
-
-    // Apply outlier removal
-    const filteredPrices = this.removeOutliers(allPrices, 3.0, 0.5, false);
-
-    // Calculate final price
-    const result =
-      PRICE_CALCULATION_METHOD === "weighted-median"
-        ? this.weightedMedian(filteredPrices, symbol)
-        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
-
-    if (isStablecoin && !skipStablecoinConversion) {
-      this.stablecoinRateCache.set(symbol, {
-        rate: result,
-        timestamp: Date.now(),
-      });
-    }
-
-    if (!isStablecoin && !skipLogging) {
-      this.logger.log(`Final price for ${symbol}: ${result}`);
-      this.logger.log(`${"=".repeat(50)}\n`);
-    }
-
-    return result;
   }
 
-  private weightedMedian(prices: PriceInfo[], symbol?: string, isStablecoin: boolean = false): number {
+  private weightedMedian(prices: PriceInfo[], symbol: string): number {
     if (prices.length === 0) {
-      throw new Error("Price list cannot be empty.");
+      this.logger.warn(`No valid prices available for ${symbol}`);
+      return 0; // or throw a specific error if you prefer
     }
 
     if (prices.length === 1) {
-      if (!isStablecoin) {
-        this.logger.debug(
-          `[${symbol || "UNKNOWN"}] Single price available, using: ${prices[0].price} from ${prices[0].exchange}`
-        );
-      }
+      this.logger.debug(
+        `[${symbol || "UNKNOWN"}] Single price available, using: ${prices[0].price} from ${prices[0].exchange}`
+      );
       return prices[0].price;
     }
 
@@ -437,14 +441,10 @@ export class PredictorFeed implements BaseDataFeed {
     const now = Date.now();
 
     // Modified logging
-    if (!isStablecoin) {
-      this.logger.debug(
-        `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
-          prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
-      );
-
-      // ... keep other detailed logging for non-stablecoin pairs ...
-    }
+    this.logger.debug(
+      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
+        prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
+    );
 
     // Calculate weights
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
