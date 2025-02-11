@@ -663,7 +663,11 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
-  private removeOutliers(prices: PriceInfo[], madThreshold: number = 3.0): PriceInfo[] {
+  private removeOutliers(
+    prices: PriceInfo[],
+    madThreshold: number = 3.0,
+    minPercentThreshold: number = 0.5
+  ): PriceInfo[] {
     if (prices.length < 3) return prices;
 
     const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
@@ -673,12 +677,14 @@ export class PredictorFeed implements BaseDataFeed {
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
-    // Increase base threshold and remove scaling factor
-    const threshold = madThreshold * mad;
+    // Calculate threshold and ensure it's at least the minimum percentage
+    const madBasedThreshold = madThreshold * mad;
+    const minThreshold = (median * minPercentThreshold) / 100;
+    const threshold = Math.max(madBasedThreshold, minThreshold);
     const percentageThreshold = (threshold / median) * 100;
 
     this.logger.log(
-      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}%`
+      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
     );
 
     // Create a formatted price list
@@ -713,7 +719,7 @@ export class PredictorFeed implements BaseDataFeed {
       );
     });
 
-    // Filter out prices more than N MADs from median
+    // Filter out prices more than threshold from median
     const filteredPrices = prices.filter(p => Math.abs(p.price - median) <= threshold);
 
     if (filteredPrices.length < prices.length) {
