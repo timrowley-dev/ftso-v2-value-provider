@@ -23,6 +23,7 @@ const RETRY_BACKOFF_MS = 10_000;
 const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average' or 'weighted-median'
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 const PREFERRED_CURRENCY_PAIRS = process.env.PREFERRED_CURRENCY_PAIRS || "usdt"; // 'usdt', 'usdc', or 'both'
+const OUTLIER_THRESHOLD = process.env.OUTLIER_THRESHOLD ? parseFloat(process.env.OUTLIER_THRESHOLD) : 5.0; // Default 5%
 
 interface FeedConfig {
   feed: FeedId;
@@ -688,22 +689,24 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private removeOutliers(prices: PriceInfo[]): PriceInfo[] {
-    // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
-    // Calculate median
     const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
     const median = sortedPrices[Math.floor(sortedPrices.length / 2)].price;
+
+    // Use the configured threshold percentage
+    const threshold = median * (OUTLIER_THRESHOLD / 100);
+
+    this.logger.log(
+      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${OUTLIER_THRESHOLD.toFixed(2)}%`
+    );
 
     // Calculate Median Absolute Deviation (MAD)
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
-    // Percentage-based threshold
-    const threshold = median * 0.02; // 2% threshold
-
     // Move key statistics to info level
-    this.logger.log(`Outlier detection: median price ${median.toFixed(4)}, threshold ±2.00%`);
+    this.logger.log(`Outlier detection: median price ${median.toFixed(4)}, threshold ±${threshold.toFixed(2)}%`);
 
     // Keep detailed statistics at debug level
     this.logger.debug(`  MAD: ${mad}`);
