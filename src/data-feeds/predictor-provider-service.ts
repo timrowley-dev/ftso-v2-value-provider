@@ -348,103 +348,67 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    const priceInfos: PriceInfo[] = [];
-    const activeExchanges = new Set<string>();
-    const inactiveExchanges = new Map<string, string>();
+    // Get raw prices and group by quote asset
+    const pricesByQuote: { [quote: string]: PriceInfo[] } = {
+      USDT: [],
+      USDC: [],
+      USD: [],
+    };
 
-    // Get raw prices without any conversions first
+    // Collect prices and group by quote asset
     for (const source of config.sources) {
       const prices = this.prices.get(source.symbol);
-      if (!prices) {
-        inactiveExchanges.set(source.exchange, "No price data received");
-        continue;
-      }
+      if (!prices) continue;
 
       const info = prices.get(source.exchange);
-      if (info === undefined) {
-        inactiveExchanges.set(source.exchange, "Exchange initialized but no recent trades");
-        continue;
-      }
+      if (!info) continue;
 
       const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
-      if (Date.now() - info.time > staleness) {
-        inactiveExchanges.set(
-          source.exchange,
-          `Stale ${info.source} data (${Math.round((Date.now() - info.time) / 1000)}s old)`
-        );
-        continue;
+      if (Date.now() - info.time > staleness) continue;
+
+      const quoteAsset = info.quoteAsset || "USD";
+      pricesByQuote[quoteAsset].push(info);
+    }
+
+    // Get conversion rates once per quote asset
+    const conversionRates: { [quote: string]: number } = {};
+    if (!skipStablecoinConversion && !isStablecoin) {
+      if (pricesByQuote.USDT.length > 0) {
+        conversionRates.USDT = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true, true);
       }
-
-      activeExchanges.add(source.exchange);
-      priceInfos.push(info);
-    }
-
-    // Modified logging for exchange status
-    if (!isStablecoin) {
-      this.logger.log(
-        `${feedId.name} - Exchange status:
-             Active (${activeExchanges.size}): ${Array.from(activeExchanges).join(", ")}
-             Inactive (${inactiveExchanges.size}): ${Array.from(inactiveExchanges.entries())
-               .map(([exchange, reason]) => `${exchange} (${reason})`)
-               .join(", ")}`
-      );
-    }
-
-    if (priceInfos.length === 0) {
-      this.logger.warn(`No prices found for ${JSON.stringify(feedId)}`);
-      return undefined;
-    }
-
-    // Apply outlier removal once here
-    const filteredPrices = this.removeOutliers(priceInfos, 3.0, 0.5, false);
-
-    // For stablecoin feeds or when skipping conversion, use filtered prices directly
-    if (isStablecoin || skipStablecoinConversion) {
-      const price =
-        PRICE_CALCULATION_METHOD === "weighted-median"
-          ? this.weightedMedian(filteredPrices, symbol, isStablecoin)
-          : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
-
-      if (isStablecoin && !skipStablecoinConversion) {
-        this.stablecoinRateCache.set(symbol, {
-          rate: price,
-          timestamp: Date.now(),
-        });
+      if (pricesByQuote.USDC.length > 0) {
+        conversionRates.USDC = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true, true);
       }
-
-      if (!isStablecoin && !skipLogging) {
-        this.logger.log(`Final price for ${symbol}: ${price}`);
-        this.logger.log(`${"=".repeat(50)}\n`);
-      }
-
-      return price;
+      conversionRates.USD = 1;
     }
 
-    // For other feeds, apply stablecoin conversion if needed
-    const convertedPrices: PriceInfo[] = [];
-    for (const info of filteredPrices) {
-      if (info.quoteAsset === "USDT") {
-        const usdtPrice = await this.getFeedPrice(usdtToUsdFeedId, votingRoundId, true, true);
-        convertedPrices.push({
-          ...info,
-          price: info.price * usdtPrice,
-        });
-      } else if (info.quoteAsset === "USDC") {
-        const usdcPrice = await this.getFeedPrice(usdcToUsdFeedId, votingRoundId, true, true);
-        convertedPrices.push({
-          ...info,
-          price: info.price * usdcPrice,
-        });
-      } else {
-        convertedPrices.push(info);
-      }
+    // Convert all prices to USD
+    const allPrices: PriceInfo[] = [];
+    for (const [quote, prices] of Object.entries(pricesByQuote)) {
+      if (prices.length === 0) continue;
+
+      const convertedPrices = prices.map(info => ({
+        ...info,
+        price: info.price * (skipStablecoinConversion ? 1 : conversionRates[quote] || 1),
+      }));
+      allPrices.push(...convertedPrices);
     }
 
-    // No need to filter outliers again since we're using already filtered prices
+    // Apply outlier removal
+    const filteredPrices = this.removeOutliers(allPrices, 3.0, 0.5, false);
+
+    // Calculate final price
     const result =
       PRICE_CALCULATION_METHOD === "weighted-median"
-        ? this.weightedMedian(convertedPrices, symbol)
-        : convertedPrices.reduce((a, b) => a + b.price, 0) / convertedPrices.length;
+        ? this.weightedMedian(filteredPrices, symbol)
+        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+
+    if (isStablecoin && !skipStablecoinConversion) {
+      this.stablecoinRateCache.set(symbol, {
+        rate: result,
+        timestamp: Date.now(),
+      });
+    }
 
     if (!isStablecoin && !skipLogging) {
       this.logger.log(`Final price for ${symbol}: ${result}`);
