@@ -698,16 +698,15 @@ export class PredictorFeed implements BaseDataFeed {
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
-    // Use MAD with configured threshold as scaling factor
-    // Typically, 3 times MAD is considered an outlier, but we'll use the configured threshold
-    const threshold = mad * OUTLIER_THRESHOLD;
+    // Add this debug line
+    this.logger.log(`Raw MAD value: ${mad}, Median: ${median}`);
+
+    // Convert percentage threshold to multiplier (5% -> 5.0 -> 0.05)
+    const thresholdMultiplier = OUTLIER_THRESHOLD / 100;
+    const threshold = mad * thresholdMultiplier;
 
     this.logger.log(
-      `Outlier detection using MAD:\n` +
-        `  Median price: ${median.toFixed(4)}\n` +
-        `  MAD: ${mad.toFixed(4)}\n` +
-        `  Threshold multiplier: ${OUTLIER_THRESHOLD}\n` +
-        `  Absolute threshold: ±${threshold.toFixed(4)}`
+      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${OUTLIER_THRESHOLD.toFixed(2)}%`
     );
 
     // Log each price's deviation
