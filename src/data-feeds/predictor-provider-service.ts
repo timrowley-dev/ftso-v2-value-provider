@@ -386,12 +386,14 @@ export class PredictorFeed implements BaseDataFeed {
       return undefined;
     }
 
-    // For stablecoin feeds or when skipping conversion, use raw prices
+    // Apply outlier removal once here
+    const filteredPrices = this.removeOutliers(priceInfos);
+
+    // For stablecoin feeds or when skipping conversion, use filtered prices directly
     if (isStablecoin || skipStablecoinConversion) {
-      const filteredPrices = this.removeOutliers(priceInfos);
       const price =
         PRICE_CALCULATION_METHOD === "weighted-median"
-          ? this.weightedMedian(filteredPrices, symbol, isStablecoin) // Pass isStablecoin flag
+          ? this.weightedMedian(filteredPrices, symbol, isStablecoin)
           : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
 
       if (isStablecoin && !skipStablecoinConversion) {
@@ -411,7 +413,7 @@ export class PredictorFeed implements BaseDataFeed {
 
     // For other feeds, apply stablecoin conversion if needed
     const convertedPrices: PriceInfo[] = [];
-    for (const info of priceInfos) {
+    for (const info of filteredPrices) {
       if (info.quoteAsset === "USDT") {
         const cached = this.stablecoinRateCache.get("USDT/USD");
         let usdtPrice: number;
@@ -449,11 +451,11 @@ export class PredictorFeed implements BaseDataFeed {
       }
     }
 
-    const filteredPrices = this.removeOutliers(convertedPrices);
+    // No need to filter outliers again since we're using already filtered prices
     const result =
       PRICE_CALCULATION_METHOD === "weighted-median"
-        ? this.weightedMedian(filteredPrices, symbol)
-        : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+        ? this.weightedMedian(convertedPrices, symbol)
+        : convertedPrices.reduce((a, b) => a + b.price, 0) / convertedPrices.length;
 
     if (!isStablecoin) {
       this.logger.log(`Final price for ${symbol}: ${result}`);
