@@ -681,6 +681,13 @@ export class PredictorFeed implements BaseDataFeed {
     const madBasedThreshold = madThreshold * mad;
     const minThreshold = (median * minPercentThreshold) / 100;
     const threshold = Math.max(madBasedThreshold, minThreshold);
+
+    // Debug logging for threshold calculation
+    this.logger.debug(`  MAD: ${mad}`);
+    this.logger.debug(`  MAD-based threshold: ${madBasedThreshold}`);
+    this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
+    this.logger.debug(`  Final threshold: ${threshold}`);
+
     const percentageThreshold = (threshold / median) * 100;
 
     this.logger.log(
