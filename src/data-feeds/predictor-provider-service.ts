@@ -687,6 +687,7 @@ export class PredictorFeed implements BaseDataFeed {
     this.logger.debug(`  MAD-based threshold: ${madBasedThreshold}`);
     this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
     this.logger.debug(`  Final threshold: ${threshold}`);
+    this.logger.debug(`  Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`);
 
     const percentageThreshold = (threshold / median) * 100;
 
@@ -694,11 +695,11 @@ export class PredictorFeed implements BaseDataFeed {
       `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
     );
 
-    // Create a formatted price list
+    // Create a formatted price list with the correct threshold
     const priceList = prices.map(p => {
       const deviation = Math.abs(p.price - median);
       const deviationPercent = (deviation / median) * 100;
-      const isOutlier = deviation > threshold;
+      const isOutlier = deviation > threshold; // Use the threshold that includes the minimum
       return {
         status: isOutlier ? "OUTLIER" : "KEPT",
         exchange: p.exchange,
