@@ -137,9 +137,6 @@ export class PredictorFeed implements BaseDataFeed {
 
   async getValues(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
     const startTime = Date.now();
-    let totalFeedTime = 0;
-
-    this.logger.log(`\n${"=".repeat(50)}\nStarting voting round ${votingRoundId}\n${"-".repeat(50)}`);
 
     // Process all feeds in parallel
     const results = await Promise.all(
@@ -147,23 +144,13 @@ export class PredictorFeed implements BaseDataFeed {
         const feedStartTime = Date.now();
         const value = await this.getValue(feed, votingRoundId);
         const feedDuration = Date.now() - feedStartTime;
-        totalFeedTime += feedDuration;
-
-        // More prominent timing display
-        this.logger.log(`⏱️  [${feed.name.padEnd(12)}] Processed in ${feedDuration.toString().padStart(4)}ms`);
+        this.logger.log(`${feed.name} processed in ${feedDuration}ms`);
         return value;
       })
     );
 
-    const totalDuration = Date.now() - startTime;
-    const avgDuration = totalFeedTime / feeds.length;
-
-    this.logger.log(`\n${"-".repeat(50)}`);
-    this.logger.log(`Round ${votingRoundId} Summary:
-    Total Duration: ${totalDuration}ms
-    Average per feed: ${avgDuration.toFixed(1)}ms
-    Feeds processed: ${feeds.length}
-  ${"-".repeat(50)}\n`);
+    const duration = Date.now() - startTime;
+    this.logger.log(`Completed voting round ${votingRoundId} in ${duration}ms for ${feeds.length} feeds`);
 
     return results;
   }
