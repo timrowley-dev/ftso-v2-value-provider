@@ -675,7 +675,6 @@ export class PredictorFeed implements BaseDataFeed {
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
-    // Remove the scaling factor of 1.4826 as it's making the threshold too tight
     const threshold = madThreshold * mad;
     const percentageThreshold = (threshold / median) * 100;
 
