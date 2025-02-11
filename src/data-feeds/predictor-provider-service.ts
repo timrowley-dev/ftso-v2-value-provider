@@ -674,8 +674,9 @@ export class PredictorFeed implements BaseDataFeed {
     // Calculate Median Absolute Deviation (MAD)
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
-    const scaledMAD = mad * 1.4826;
-    const threshold = madThreshold * scaledMAD;
+
+    // Remove the scaling factor of 1.4826 as it's making the threshold too tight
+    const threshold = madThreshold * mad;
     const percentageThreshold = (threshold / median) * 100;
 
     // Move key statistics to info level
@@ -685,7 +686,6 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Keep detailed statistics at debug level
     this.logger.debug(`  MAD: ${mad}`);
-    this.logger.debug(`  Scaled MAD: ${scaledMAD}`);
     this.logger.debug(`  Absolute threshold: ±${threshold}`);
     this.logger.debug(`  Acceptable range: ${median - threshold} to ${median + threshold}`);
 
