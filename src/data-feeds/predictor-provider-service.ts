@@ -145,25 +145,41 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   async getValue(feed: FeedId, votingRoundId: number): Promise<FeedValueData> {
-    let price: number;
     const excludedFeedNames = [];
-    // TODO: remove votingRoundId === 0?
+
+    const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
+
+    // Early return for excluded feeds or voting round 0
     if (excludedFeedNames.includes(feed.name) || votingRoundId === 0) {
-      price = await this.getFeedPrice(feed, votingRoundId);
-    } else {
-      const ccxtPrice = await this.getFeedPrice(feed, votingRoundId);
-      let predictorPrice: number | null = null;
-      if (process.env.PREDICTOR_ENABLED === "true") {
-        predictorPrice = await this.getFeedPricePredictor(feed);
-      }
-
-      price = predictorPrice || ccxtPrice;
-
-      this.logger.log(
-        `[${feed.name}] Using ${predictorPrice ? "predictor" : "CCXT"} price: ${price} ` +
-          `(CCXT: ${ccxtPrice}, Predictor: ${predictorPrice || "N/A"})`
-      );
+      return {
+        feed: feed,
+        value: ccxtPrice,
+      };
     }
+
+    // If predictor is enabled, fetch price asynchronously with timeout
+    let predictorPrice: number | null = null;
+    if (process.env.PREDICTOR_ENABLED === "true") {
+      try {
+        // Wrap predictor call in Promise.race with timeout
+        const timeoutMs = 10000; // 10 second timeout
+        predictorPrice = await Promise.race([
+          this.getFeedPricePredictor(feed),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error("Predictor timeout")), timeoutMs)),
+        ]);
+      } catch (error) {
+        this.logger.warn(`Predictor failed or timed out for ${feed.name}: ${error.message}`);
+        predictorPrice = null;
+      }
+    }
+
+    // Use predictor price if available, otherwise fall back to CCXT price
+    const price = predictorPrice || ccxtPrice;
+
+    this.logger.log(
+      `[${feed.name}] Using ${predictorPrice ? "predictor" : "CCXT"} price: ${price} ` +
+        `(CCXT: ${ccxtPrice}, Predictor: ${predictorPrice || "N/A"})`
+    );
 
     return {
       feed: feed,
