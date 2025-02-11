@@ -694,37 +694,38 @@ export class PredictorFeed implements BaseDataFeed {
     const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
     const median = sortedPrices[Math.floor(sortedPrices.length / 2)].price;
 
-    // Use the configured threshold percentage
-    const threshold = median * (OUTLIER_THRESHOLD / 100);
-
-    this.logger.log(
-      `Outlier detection: median price ${median.toFixed(4)}, threshold ±${OUTLIER_THRESHOLD.toFixed(2)}%`
-    );
-
     // Calculate Median Absolute Deviation (MAD)
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
-    // Move key statistics to info level
-    this.logger.log(`Outlier detection: median price ${median.toFixed(4)}, threshold ±${threshold.toFixed(2)}%`);
+    // Use MAD with configured threshold as scaling factor
+    // Typically, 3 times MAD is considered an outlier, but we'll use the configured threshold
+    const threshold = mad * OUTLIER_THRESHOLD;
 
-    // Keep detailed statistics at debug level
-    this.logger.debug(`  MAD: ${mad}`);
-    this.logger.debug(`  Absolute threshold: ±${threshold}`);
-    this.logger.debug(`  Acceptable range: ${median - threshold} to ${median + threshold}`);
+    this.logger.log(
+      `Outlier detection using MAD:\n` +
+        `  Median price: ${median.toFixed(4)}\n` +
+        `  MAD: ${mad.toFixed(4)}\n` +
+        `  Threshold multiplier: ${OUTLIER_THRESHOLD}\n` +
+        `  Absolute threshold: ±${threshold.toFixed(4)}`
+    );
 
-    // Log each price's deviation with percentage at info level if it's an outlier
+    // Log each price's deviation
     prices.forEach(p => {
       const deviation = Math.abs(p.price - median);
-      const deviationPercent = (deviation / median) * 100;
+      const madDeviations = deviation / mad;
       if (deviation > threshold) {
-        this.logger.log(`  OUTLIER: ${p.exchange} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`);
+        this.logger.log(
+          `  OUTLIER: ${p.exchange} price ${p.price.toFixed(4)} ` + `(${madDeviations.toFixed(2)} MADs from median)`
+        );
       } else {
-        this.logger.debug(`  KEPT: ${p.exchange} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`);
+        this.logger.debug(
+          `  KEPT: ${p.exchange} price ${p.price.toFixed(4)} ` + `(${madDeviations.toFixed(2)} MADs from median)`
+        );
       }
     });
 
-    // Filter out prices more than threshold from median
+    // Filter out prices more than threshold MADs from median
     const filteredPrices = prices.filter(p => Math.abs(p.price - median) <= threshold);
 
     if (filteredPrices.length < prices.length) {
