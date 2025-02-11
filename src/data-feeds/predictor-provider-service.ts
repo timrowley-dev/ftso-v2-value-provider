@@ -664,17 +664,16 @@ export class PredictorFeed implements BaseDataFeed {
   }
 
   private removeOutliers(prices: PriceInfo[], madThreshold: number = 3.0): PriceInfo[] {
-    // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
-    // Calculate median
     const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
     const median = sortedPrices[Math.floor(sortedPrices.length / 2)].price;
 
-    // Calculate Median Absolute Deviation (MAD)
+    // Calculate MAD without scaling factor
     const absoluteDeviations = prices.map(p => Math.abs(p.price - median));
     const mad = absoluteDeviations.sort((a, b) => a - b)[Math.floor(absoluteDeviations.length / 2)];
 
+    // Increase base threshold and remove scaling factor
     const threshold = madThreshold * mad;
     const percentageThreshold = (threshold / median) * 100;
 
@@ -682,13 +681,35 @@ export class PredictorFeed implements BaseDataFeed {
       `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}%`
     );
 
-    this.logger.log(`Price deviations from median:`);
-    prices.forEach(p => {
+    // Create a formatted price list
+    const priceList = prices.map(p => {
       const deviation = Math.abs(p.price - median);
       const deviationPercent = (deviation / median) * 100;
-      const status = deviation > threshold ? "OUTLIER" : "KEPT";
+      const isOutlier = deviation > threshold;
+      return {
+        status: isOutlier ? "OUTLIER" : "KEPT",
+        exchange: p.exchange,
+        price: p.price,
+        deviationPercent,
+      };
+    });
+
+    // Sort by status (KEPT first) then by exchange name
+    priceList.sort((a, b) => {
+      if (a.status !== b.status) return a.status === "KEPT" ? -1 : 1;
+      return a.exchange.localeCompare(b.exchange);
+    });
+
+    // Log all prices with clear separation between kept and outliers
+    this.logger.log(`Price deviations from median:`);
+    let currentStatus = "";
+    priceList.forEach(p => {
+      if (p.status !== currentStatus) {
+        currentStatus = p.status;
+        this.logger.log(`  ${currentStatus}:`);
+      }
       this.logger.log(
-        `  ${status.padEnd(7)}: ${p.exchange.padEnd(10)} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`
+        `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
       );
     });
 
