@@ -663,7 +663,7 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
-  private removeOutliers(prices: PriceInfo[], madThreshold: number = 2.0): PriceInfo[] {
+  private removeOutliers(prices: PriceInfo[], madThreshold: number = 3.0): PriceInfo[] {
     // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
@@ -678,25 +678,18 @@ export class PredictorFeed implements BaseDataFeed {
     const threshold = madThreshold * mad;
     const percentageThreshold = (threshold / median) * 100;
 
-    // Move key statistics to info level
     this.logger.log(
       `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}%`
     );
 
-    // Keep detailed statistics at debug level
-    this.logger.debug(`  MAD: ${mad}`);
-    this.logger.debug(`  Absolute threshold: ±${threshold}`);
-    this.logger.debug(`  Acceptable range: ${median - threshold} to ${median + threshold}`);
-
-    // Log each price's deviation with percentage at info level if it's an outlier
+    this.logger.log(`Price deviations from median:`);
     prices.forEach(p => {
       const deviation = Math.abs(p.price - median);
       const deviationPercent = (deviation / median) * 100;
-      if (deviation > threshold) {
-        this.logger.log(`  OUTLIER: ${p.exchange} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`);
-      } else {
-        this.logger.debug(`  KEPT: ${p.exchange} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`);
-      }
+      const status = deviation > threshold ? "OUTLIER" : "KEPT";
+      this.logger.log(
+        `  ${status.padEnd(7)}: ${p.exchange.padEnd(10)} price ${p.price} (${deviationPercent.toFixed(2)}% from median)`
+      );
     });
 
     // Filter out prices more than N MADs from median
