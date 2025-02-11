@@ -663,7 +663,7 @@ export class PredictorFeed implements BaseDataFeed {
     }
   }
 
-  private removeOutliers(prices: PriceInfo[], madThreshold: number = 0.75): PriceInfo[] {
+  private removeOutliers(prices: PriceInfo[], madThreshold: number = 2.0): PriceInfo[] {
     // Need at least 3 prices for meaningful outlier detection
     if (prices.length < 3) return prices;
 
