@@ -463,11 +463,10 @@ export class PredictorFeed implements BaseDataFeed {
         symbol
       );
 
-      // Calculate final price
-      const result =
-        PRICE_CALCULATION_METHOD === "weighted-median"
-          ? this.weightedMedian(filteredPrices, symbol)
-          : filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+      // Calculate final price with both methods
+      const weightedMedianPrice = this.weightedMedian(filteredPrices, symbol);
+      const averagePrice = filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
+      const result = PRICE_CALCULATION_METHOD === "weighted-median" ? weightedMedianPrice : averagePrice;
 
       if (isStablecoin && !skipStablecoinConversion) {
         this.stablecoinRateCache.set(symbol, {
@@ -477,7 +476,10 @@ export class PredictorFeed implements BaseDataFeed {
       }
 
       if (!isStablecoin && !skipLogging) {
-        this.logger.log(`Final price for ${symbol}: ${result}`);
+        this.logger.log(
+          `Final price for ${symbol}: ${result} ` +
+            `(weighted-median: ${weightedMedianPrice}, average: ${averagePrice})`
+        );
         this.logger.log(`${"=".repeat(50)}\n`);
       }
 
