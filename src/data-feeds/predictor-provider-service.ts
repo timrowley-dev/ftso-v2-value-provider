@@ -459,7 +459,8 @@ export class PredictorFeed implements BaseDataFeed {
         allPrices,
         OUTLIER_MAD_THRESHOLD,
         OUTLIER_MIN_PERCENT_THRESHOLD,
-        false
+        skipLogging,
+        symbol
       );
 
       // Calculate final price
@@ -652,7 +653,8 @@ export class PredictorFeed implements BaseDataFeed {
     prices: PriceInfo[],
     madThreshold: number = OUTLIER_MAD_THRESHOLD,
     minPercentThreshold: number = OUTLIER_MIN_PERCENT_THRESHOLD,
-    skipLogging: boolean = false
+    skipLogging: boolean = false,
+    symbol: string = "UNKNOWN"
   ): PriceInfo[] {
     if (prices.length < 3) return prices;
 
@@ -674,7 +676,7 @@ export class PredictorFeed implements BaseDataFeed {
 
     if (!skipLogging) {
       this.logger.log(
-        `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
+        `[${symbol}] Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
       );
 
       // Debug logging with proper indentation
@@ -702,12 +704,12 @@ export class PredictorFeed implements BaseDataFeed {
     if (!skipLogging) {
       if (filteredPrices.length < prices.length) {
         this.logger.log(
-          `Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
+          `[${symbol}] Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
             `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
         );
       }
 
-      this.logger.log(`Price deviations from median:`);
+      this.logger.log(`[${symbol}] Price deviations from median:`);
 
       // Group prices by status for cleaner logging
       const keptPrices = priceList.filter(p => p.status === "KEPT");
@@ -718,7 +720,7 @@ export class PredictorFeed implements BaseDataFeed {
         this.logger.log(`  KEPT:`);
         keptPrices.forEach(p => {
           this.logger.log(
-            `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
+            `    [${symbol}] ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
           );
         });
       }
@@ -728,7 +730,7 @@ export class PredictorFeed implements BaseDataFeed {
         this.logger.warn(`  OUTLIER:`);
         outliers.forEach(p => {
           this.logger.warn(
-            `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
+            `    [${symbol}] ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
           );
         });
       }
