@@ -349,6 +349,15 @@ export class PredictorFeed implements BaseDataFeed {
         return undefined;
       }
 
+      // Track exchange statuses
+      const exchangeStatuses = {
+        total: config.sources.length,
+        active: 0,
+        stale: 0,
+        noData: 0,
+        invalidPrice: 0,
+      };
+
       // Get raw prices and group by quote asset
       const pricesByQuote: { [quote: string]: PriceInfo[] } = {
         USDT: [],
@@ -359,16 +368,52 @@ export class PredictorFeed implements BaseDataFeed {
       // Collect prices and group by quote asset
       for (const source of config.sources) {
         const prices = this.prices.get(source.symbol);
-        if (!prices) continue;
+        if (!prices) {
+          exchangeStatuses.noData++;
+          this.logger.debug(`${source.exchange}: No price data found`);
+          continue;
+        }
 
         const info = prices.get(source.exchange);
-        if (!info) continue;
+        if (!info) {
+          exchangeStatuses.noData++;
+          this.logger.debug(`${source.exchange}: No exchange data found`);
+          continue;
+        }
 
         const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
-        if (Date.now() - info.time > staleness) continue;
+        if (Date.now() - info.time > staleness) {
+          exchangeStatuses.stale++;
+          this.logger.debug(`${source.exchange}: Stale data (${Math.round((Date.now() - info.time) / 1000)}s old)`);
+          continue;
+        }
 
+        if (!info.price || info.price <= 0) {
+          exchangeStatuses.invalidPrice++;
+          this.logger.debug(`${source.exchange}: Invalid price (${info.price})`);
+          continue;
+        }
+
+        exchangeStatuses.active++;
         const quoteAsset = info.quoteAsset || "USD";
         pricesByQuote[quoteAsset].push(info);
+      }
+
+      // Log exchange status summary
+      if (!skipLogging) {
+        const statusMsg = [
+          `Exchange Status for ${symbol}:`,
+          `  Active: ${exchangeStatuses.active}/${exchangeStatuses.total}`,
+          `  Stale: ${exchangeStatuses.stale}`,
+          `  No Data: ${exchangeStatuses.noData}`,
+          `  Invalid Price: ${exchangeStatuses.invalidPrice}`,
+        ].join("\n");
+
+        if (exchangeStatuses.active < exchangeStatuses.total * 0.5) {
+          this.logger.warn(statusMsg);
+        } else {
+          this.logger.debug(statusMsg);
+        }
       }
 
       // Get conversion rates once per quote asset
@@ -637,7 +682,23 @@ export class PredictorFeed implements BaseDataFeed {
     const minThreshold = median * minThresholdDecimal;
     const threshold = Math.max(madBasedThreshold, minThreshold);
 
-    // Only log if not skipped
+    // Calculate the percentage threshold for logging
+    const percentageThreshold = (threshold / median) * 100;
+
+    if (!skipLogging) {
+      this.logger.log(
+        `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
+      );
+    }
+
+    // Create a formatted price list with the correct threshold
+    const priceList = prices.map(p => ({
+      status: Math.abs(p.price - median) > threshold ? "OUTLIER" : "KEPT",
+      exchange: p.exchange,
+      price: p.price,
+      deviationPercent: (Math.abs(p.price - median) / median) * 100,
+    }));
+
     if (!skipLogging) {
       // Debug logging for threshold calculation
       this.logger.debug(`  MAD: ${mad}`);
@@ -646,21 +707,6 @@ export class PredictorFeed implements BaseDataFeed {
       this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
       this.logger.debug(`  Final threshold: ${threshold}`);
       this.logger.debug(`  Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`);
-
-      // Calculate the percentage for logging
-      const percentageThreshold = (threshold / median) * 100;
-
-      this.logger.log(
-        `Outlier detection: median price ${median.toFixed(4)}, threshold ±${percentageThreshold.toFixed(2)}% (minimum: ±${minPercentThreshold.toFixed(2)}%)`
-      );
-
-      // Create a formatted price list with the correct threshold
-      const priceList = prices.map(p => ({
-        status: Math.abs(p.price - median) > threshold ? "OUTLIER" : "KEPT",
-        exchange: p.exchange,
-        price: p.price,
-        deviationPercent: (Math.abs(p.price - median) / median) * 100,
-      }));
 
       // Sort by status (KEPT first) then by exchange name
       priceList.sort((a, b) => {
@@ -690,6 +736,31 @@ export class PredictorFeed implements BaseDataFeed {
         `Summary: Removed ${prices.length - filteredPrices.length} of ${prices.length} prices ` +
           `(${(((prices.length - filteredPrices.length) / prices.length) * 100).toFixed(1)}%)`
       );
+    }
+
+    if (!skipLogging) {
+      this.logger.log(`Price deviations from median:`);
+      this.logger.log(`  KEPT:`);
+
+      // Log kept prices
+      priceList
+        .filter(p => p.status === "KEPT")
+        .forEach(p => {
+          this.logger.log(
+            `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
+          );
+        });
+
+      // Log outliers in white using warn level
+      const outliers = priceList.filter(p => p.status === "OUTLIER");
+      if (outliers.length > 0) {
+        this.logger.warn(`  OUTLIER:`);
+        outliers.forEach(p => {
+          this.logger.warn(
+            `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
+          );
+        });
+      }
     }
 
     return filteredPrices;
