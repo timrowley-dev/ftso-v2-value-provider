@@ -22,7 +22,6 @@ const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
 const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average' or 'weighted-median'
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
-const PREFERRED_CURRENCY_PAIRS = process.env.PREFERRED_CURRENCY_PAIRS || "usdt"; // 'usdt', 'usdc', or 'both'
 const OUTLIER_MAD_THRESHOLD = process.env.OUTLIER_MAD_THRESHOLD ? parseFloat(process.env.OUTLIER_MAD_THRESHOLD) : 3.0;
 const OUTLIER_MIN_PERCENT_THRESHOLD = process.env.OUTLIER_MIN_PERCENT_THRESHOLD
   ? parseFloat(process.env.OUTLIER_MIN_PERCENT_THRESHOLD)
@@ -68,6 +67,15 @@ interface PredictionResponse {
   };
 }
 
+interface SimplifiedConfig {
+  stablecoins: string[];
+  exchanges: string[];
+  baseTokens: {
+    category: number;
+    symbol: string;
+  }[];
+}
+
 const usdtToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDT/USD" };
 const usdcToUsdFeedId: FeedId = { category: FeedCategory.Crypto.valueOf(), name: "USDC/USD" };
 
@@ -89,52 +97,48 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly CACHE_TTL_MS = 10000; // Increase to 10 seconds
 
   async start() {
-    this.config = this.loadConfig();
+    const config = this.loadConfig();
     const exchangeToSymbols = new Map<string, Set<string>>();
-    this.logger.log(`Predictor Config: HOST: ${process.env.PREDICTOR_HOST} PORT: ${process.env.PREDICTOR_PORT}`);
 
-    for (const feed of this.config) {
-      for (const source of feed.sources) {
-        const symbols = exchangeToSymbols.get(source.exchange) || new Set();
-        symbols.add(source.symbol);
-        exchangeToSymbols.set(source.exchange, symbols);
-      }
-    }
-
-    this.logger.log(`Connecting to exchanges: ${JSON.stringify(Array.from(exchangeToSymbols.keys()))}`);
-    const loadExchanges = [];
-    for (const exchangeName of exchangeToSymbols.keys()) {
+    // Initialize exchanges
+    for (const exchangeName of config.exchanges) {
       try {
-        // Try to initialize with CCXT Pro first, fall back to regular CCXT
         let exchange: Exchange;
         try {
           exchange = new ccxt.pro[exchangeName]({ newUpdates: true });
           this.logger.debug(`Using CCXT Pro for ${exchangeName}`);
         } catch (e) {
-          // If Pro initialization fails, try regular CCXT
           exchange = new ccxt[exchangeName]({ newUpdates: true });
           this.logger.debug(`Falling back to regular CCXT for ${exchangeName}`);
         }
 
+        await exchange.loadMarkets();
         this.exchangeByName.set(exchangeName, exchange);
-        loadExchanges.push([exchangeName, retry(async () => exchange.loadMarkets(), 2, RETRY_BACKOFF_MS, this.logger)]);
+
+        // Find all available pairs for each base token
+        const symbols = new Set<string>();
+        for (const baseToken of config.baseTokens) {
+          // Check for all possible quote currencies (USD and stablecoins)
+          const quoteCurrencies = ["USD", ...config.stablecoins];
+
+          for (const quote of quoteCurrencies) {
+            const pair = `${baseToken.symbol}/${quote}`;
+            if (exchange.markets[pair]) {
+              symbols.add(pair);
+              this.logger.debug(`Found market ${pair} on ${exchangeName}`);
+            }
+          }
+        }
+
+        if (symbols.size > 0) {
+          exchangeToSymbols.set(exchangeName, symbols);
+        }
       } catch (e) {
         this.logger.warn(`Failed to initialize exchange ${exchangeName}, ignoring: ${e}`);
-        exchangeToSymbols.delete(exchangeName);
       }
     }
 
-    for (const [exchangeName, loadExchange] of loadExchanges) {
-      try {
-        await loadExchange;
-        this.logger.log(`Exchange ${exchangeName} initialized`);
-      } catch (e) {
-        this.logger.warn(`Failed to load markets for ${exchangeName}, ignoring: ${e}`);
-        exchangeToSymbols.delete(exchangeName);
-      }
-    }
     this.initialized = true;
-
     this.logger.log(`Initialization done, watching trades...`);
     void this.initWatchTrades(exchangeToSymbols);
   }
@@ -609,44 +613,28 @@ export class PredictorFeed implements BaseDataFeed {
     return null;
   }
 
-  private loadConfig() {
+  private loadConfig(): SimplifiedConfig {
     const network = process.env.NETWORK as networks;
-    let configPath: string;
-    switch (network) {
-      case "local-test":
-        configPath = CONFIG_PREFIX + "test-feeds.json";
-        break;
-      default:
-        configPath = CONFIG_PREFIX + "feeds.json";
-    }
+    const configPath = network === "local-test" ? CONFIG_PREFIX + "test-feeds.json" : CONFIG_PREFIX + "feeds.json";
 
     try {
       const jsonString = readFileSync(configPath, "utf-8");
-      let config: FeedConfig[] = JSON.parse(jsonString);
+      const config: SimplifiedConfig = JSON.parse(jsonString);
 
-      // Filter sources based on PREFERRED_CURRENCY_PAIRS
-      config = config.map(feed => ({
-        ...feed,
-        sources: feed.sources.filter(source => {
-          // Don't filter the stablecoin feeds themselves
-          if (feed.feed.name === "USDT/USD" || feed.feed.name === "USDC/USD") return true;
-
-          if (PREFERRED_CURRENCY_PAIRS === "both") return true;
-          if (PREFERRED_CURRENCY_PAIRS === "usdt") return source.symbol.endsWith("USDT");
-          if (PREFERRED_CURRENCY_PAIRS === "usdc") return source.symbol.endsWith("USDC");
-          return true;
-        }),
-      }));
-
-      // Always validate both stablecoin feeds exist since we need them for conversion
-      if (config.find(feed => feedsEqual(feed.feed, usdtToUsdFeedId)) === undefined) {
-        throw new Error("Must provide USDT feed sources, as it is used for USD conversion.");
-      }
-      if (config.find(feed => feedsEqual(feed.feed, usdcToUsdFeedId)) === undefined) {
-        throw new Error("Must provide USDC feed sources, as it is used for USD conversion.");
+      // Validate config
+      if (!config.stablecoins?.includes("USDT") || !config.stablecoins?.includes("USDC")) {
+        throw new Error("Config must include both USDT and USDC in stablecoins array");
       }
 
-      this.logger.log(`Supported feeds: ${JSON.stringify(config.map(f => f.feed))}`);
+      if (!config.exchanges?.length) {
+        throw new Error("Config must include at least one exchange");
+      }
+
+      if (!config.baseTokens?.length) {
+        throw new Error("Config must include at least one base token");
+      }
+
+      this.logger.log(`Loaded ${config.baseTokens.length} base tokens across ${config.exchanges.length} exchanges`);
       return config;
     } catch (err) {
       this.logger.error("Error parsing JSON config:", err);
