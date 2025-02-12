@@ -83,6 +83,7 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly logger = new Logger(PredictorFeed.name);
   protected initialized = false;
   private config: FeedConfig[];
+  private simplifiedConfig: SimplifiedConfig;
 
   private readonly exchangeByName: Map<string, Exchange> = new Map();
 
@@ -97,11 +98,13 @@ export class PredictorFeed implements BaseDataFeed {
   private readonly CACHE_TTL_MS = 10000; // Increase to 10 seconds
 
   async start() {
-    const config = this.loadConfig();
+    this.simplifiedConfig = this.loadConfig();
+    // Convert simplified config to feed configs
+    this.config = this.generateFeedConfigs(this.simplifiedConfig);
     const exchangeToSymbols = new Map<string, Set<string>>();
 
     // Initialize exchanges
-    for (const exchangeName of config.exchanges) {
+    for (const exchangeName of this.simplifiedConfig.exchanges) {
       try {
         let exchange: Exchange;
         try {
@@ -117,9 +120,9 @@ export class PredictorFeed implements BaseDataFeed {
 
         // Find all available pairs for each base token
         const symbols = new Set<string>();
-        for (const baseToken of config.baseTokens) {
+        for (const baseToken of this.simplifiedConfig.baseTokens) {
           // Check for all possible quote currencies (USD and stablecoins)
-          const quoteCurrencies = ["USD", ...config.stablecoins];
+          const quoteCurrencies = ["USD", ...this.simplifiedConfig.stablecoins];
 
           for (const quote of quoteCurrencies) {
             const pair = `${baseToken.symbol}/${quote}`;
@@ -729,6 +732,20 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     return filteredPrices;
+  }
+
+  private generateFeedConfigs(config: SimplifiedConfig): FeedConfig[] {
+    const feedConfigs: FeedConfig[] = [];
+
+    for (const baseToken of config.baseTokens) {
+      // Generate USD feed config
+      feedConfigs.push({
+        feed: { category: baseToken.category, name: `${baseToken.symbol}/USD` },
+        sources: [], // Will be populated with actual sources as they're discovered
+      });
+    }
+
+    return feedConfigs;
   }
 }
 
