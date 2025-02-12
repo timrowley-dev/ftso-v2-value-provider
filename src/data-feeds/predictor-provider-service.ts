@@ -339,7 +339,7 @@ export class PredictorFeed implements BaseDataFeed {
   ): Promise<number> {
     try {
       const symbol = feedId.name;
-      const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD";
+      const isStablecoin = symbol === "USDT/USD" || symbol === "USDC/USD" || symbol === "USDX/USD";
 
       // Check cache first for stablecoins
       if (isStablecoin && !skipStablecoinConversion) {
@@ -481,10 +481,21 @@ export class PredictorFeed implements BaseDataFeed {
         this.logger.log(`${"=".repeat(50)}\n`);
       }
 
+      // Return 1 for stablecoins if no valid price is found
+      if (isStablecoin && (!result || result === 0)) {
+        this.logger.warn(`No valid price found for ${symbol}, defaulting to 1`);
+        return 1;
+      }
+
       return result;
     } catch (error) {
       this.logger.error(`Error getting price for ${feedId.name}: ${error.message}`);
-      return 0; // or other appropriate default/fallback value
+      // Return 1 for stablecoins on error
+      if (feedId.name === "USDT/USD" || feedId.name === "USDC/USD" || feedId.name === "USDX/USD") {
+        this.logger.warn(`Returning default value of 1 for ${feedId.name} due to error`);
+        return 1;
+      }
+      return 0; // Default fallback for non-stablecoins
     }
   }
 
