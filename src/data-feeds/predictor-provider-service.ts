@@ -485,10 +485,10 @@ export class PredictorFeed implements BaseDataFeed {
     prices.sort((a, b) => a.price - b.price);
     const now = Date.now();
 
-    // Modified logging
+    // Improve log formatting with proper indentation
     this.logger.debug(
-      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
-        prices.map(p => `  ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
+      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n    ` +
+        prices.map(p => `${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n    ")
     );
 
     // Calculate weights
@@ -542,18 +542,19 @@ export class PredictorFeed implements BaseDataFeed {
           const fraction = (midpoint - prevWeight) / normalizedWeights[i];
           const weightedPrice = leftPrice + (rightPrice - leftPrice) * fraction;
 
-          this.logger.debug(`Interpolating between:`);
-          this.logger.debug(`  ${prices[i].exchange}: ${leftPrice}`);
-          this.logger.debug(`  ${prices[i + 1].exchange}: ${rightPrice}`);
-          this.logger.debug(`  Fraction: ${fraction.toFixed(4)}`);
-          this.logger.debug(`  Final weighted median: ${weightedPrice}`);
+          // Update interpolation logging with proper indentation
+          this.logger.debug(`    Interpolating between:`);
+          this.logger.debug(`      ${prices[i].exchange}: ${leftPrice}`);
+          this.logger.debug(`      ${prices[i + 1].exchange}: ${rightPrice}`);
+          this.logger.debug(`      Fraction: ${fraction.toFixed(4)}`);
+          this.logger.debug(`      Final weighted median: ${weightedPrice}`);
 
-          // Log final result more clearly
+          // Update final result logging
           this.logger.debug(
-            `Selected median between:\n` +
-              `  ${prices[i].exchange}: ${prices[i].price}\n` +
-              `  ${prices[i + 1].exchange}: ${prices[i + 1].price}\n` +
-              `Final weighted median: ${weightedPrice} (interpolation: ${fraction.toFixed(4)})`
+            `    Selected median between:\n` +
+              `      ${prices[i].exchange}: ${prices[i].price}\n` +
+              `      ${prices[i + 1].exchange}: ${prices[i + 1].price}\n` +
+              `    Final weighted median: ${weightedPrice} (interpolation: ${fraction.toFixed(4)})`
           );
 
           return weightedPrice;
@@ -700,30 +701,26 @@ export class PredictorFeed implements BaseDataFeed {
     }));
 
     if (!skipLogging) {
-      // Debug logging for threshold calculation
-      this.logger.debug(`  MAD: ${mad}`);
-      this.logger.debug(`  MAD-based threshold: ${madBasedThreshold}`);
-      this.logger.debug(`  Min percent threshold (decimal): ${minThresholdDecimal}`);
-      this.logger.debug(`  Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
-      this.logger.debug(`  Final threshold: ${threshold}`);
-      this.logger.debug(`  Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`);
+      // Update debug logging with proper indentation
+      this.logger.debug(`    MAD: ${mad}`);
+      this.logger.debug(`    MAD-based threshold: ${madBasedThreshold}`);
+      this.logger.debug(`    Min percent threshold (decimal): ${minThresholdDecimal}`);
+      this.logger.debug(`    Minimum threshold (${minPercentThreshold}%): ${minThreshold}`);
+      this.logger.debug(`    Final threshold: ${threshold}`);
+      this.logger.debug(
+        `    Acceptable range: ${(median - threshold).toFixed(8)} to ${(median + threshold).toFixed(8)}`
+      );
 
-      // Sort by status (KEPT first) then by exchange name
-      priceList.sort((a, b) => {
-        if (a.status !== b.status) return a.status === "KEPT" ? -1 : 1;
-        return a.exchange.localeCompare(b.exchange);
-      });
-
-      // Log all prices with clear separation between kept and outliers
-      this.logger.log(`Price deviations from median:`);
+      // Update price deviation logging
+      this.logger.log(`    Price deviations from median:`);
       let currentStatus = "";
       priceList.forEach(p => {
         if (p.status !== currentStatus) {
           currentStatus = p.status;
-          this.logger.log(`  ${currentStatus}:`);
+          this.logger.log(`      ${currentStatus}:`);
         }
         this.logger.log(
-          `    ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
+          `        ${p.exchange.padEnd(10)} price ${p.price.toFixed(8)} (${p.deviationPercent.toFixed(2)}% from median)`
         );
       });
     }
