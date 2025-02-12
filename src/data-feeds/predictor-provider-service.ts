@@ -651,6 +651,7 @@ export class PredictorFeed implements BaseDataFeed {
     minPercentThreshold: number = 2.0,
     skipLogging: boolean = false
   ): PriceInfo[] {
+    this.logger.debug(`removeOutliers called with minPercentThreshold: ${minPercentThreshold}`);
     if (prices.length < 3) return prices;
 
     const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
