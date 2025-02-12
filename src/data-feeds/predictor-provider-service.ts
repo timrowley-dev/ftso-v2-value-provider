@@ -23,6 +23,10 @@ const RETRY_BACKOFF_MS = 10_000;
 const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average' or 'weighted-median'
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 const PREFERRED_CURRENCY_PAIRS = process.env.PREFERRED_CURRENCY_PAIRS || "usdt"; // 'usdt', 'usdc', or 'both'
+const OUTLIER_MAD_THRESHOLD = process.env.OUTLIER_MAD_THRESHOLD ? parseFloat(process.env.OUTLIER_MAD_THRESHOLD) : 3.0;
+const OUTLIER_MIN_PERCENT_THRESHOLD = process.env.OUTLIER_MIN_PERCENT_THRESHOLD
+  ? parseFloat(process.env.OUTLIER_MIN_PERCENT_THRESHOLD)
+  : 0.5;
 
 interface FeedConfig {
   feed: FeedId;
@@ -441,7 +445,12 @@ export class PredictorFeed implements BaseDataFeed {
       }
 
       // Apply outlier removal
-      const filteredPrices = this.removeOutliers(allPrices, 3.0, 0.5, false);
+      const filteredPrices = this.removeOutliers(
+        allPrices,
+        OUTLIER_MAD_THRESHOLD,
+        OUTLIER_MIN_PERCENT_THRESHOLD,
+        false
+      );
 
       // Calculate final price
       const result =
@@ -647,11 +656,10 @@ export class PredictorFeed implements BaseDataFeed {
 
   private removeOutliers(
     prices: PriceInfo[],
-    madThreshold: number = 3.0,
-    minPercentThreshold: number = 2.0,
+    madThreshold: number = OUTLIER_MAD_THRESHOLD,
+    minPercentThreshold: number = OUTLIER_MIN_PERCENT_THRESHOLD,
     skipLogging: boolean = false
   ): PriceInfo[] {
-    this.logger.debug(`removeOutliers called with minPercentThreshold: ${minPercentThreshold}`);
     if (prices.length < 3) return prices;
 
     const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
