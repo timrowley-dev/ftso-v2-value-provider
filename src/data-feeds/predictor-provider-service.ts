@@ -471,7 +471,7 @@ export class PredictorFeed implements BaseDataFeed {
   private weightedMedian(prices: PriceInfo[], symbol: string): number {
     if (prices.length === 0) {
       this.logger.warn(`No valid prices available for ${symbol}`);
-      return 0; // or throw a specific error if you prefer
+      return 0;
     }
 
     if (prices.length === 1) {
@@ -485,10 +485,9 @@ export class PredictorFeed implements BaseDataFeed {
     prices.sort((a, b) => a.price - b.price);
     const now = Date.now();
 
-    // Improve log formatting with proper indentation
     this.logger.debug(
-      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n    ` +
-        prices.map(p => `${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n    ")
+      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
+        prices.map(p => `        ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
     );
 
     // Calculate weights
@@ -528,47 +527,31 @@ export class PredictorFeed implements BaseDataFeed {
     let cumulativeWeight = 0;
     const midpoint = 0.5;
 
-    for (let i = 0; i < prices.length; i++) {
+    for (let i = 0; i < prices.length - 1; i++) {
       const prevWeight = cumulativeWeight;
       cumulativeWeight += normalizedWeights[i];
 
       this.logger.debug(`Cumulative weight after ${prices[i].exchange}: ${cumulativeWeight.toFixed(4)}`);
 
-      if (prevWeight <= midpoint && cumulativeWeight >= midpoint) {
-        // If we're between two prices, interpolate
-        if (i < prices.length - 1) {
-          const leftPrice = prices[i].price;
-          const rightPrice = prices[i + 1].price;
-          const fraction = (midpoint - prevWeight) / normalizedWeights[i];
-          const weightedPrice = leftPrice + (rightPrice - leftPrice) * fraction;
+      if (cumulativeWeight >= midpoint) {
+        // If we've crossed the midpoint, interpolate between this price and the previous
+        const fraction = (midpoint - prevWeight) / normalizedWeights[i];
+        const weightedPrice = prices[i].price + (prices[i + 1].price - prices[i].price) * fraction;
 
-          // Update interpolation logging with proper indentation
-          this.logger.debug(`    Interpolating between:`);
-          this.logger.debug(`      ${prices[i].exchange}: ${leftPrice}`);
-          this.logger.debug(`      ${prices[i + 1].exchange}: ${rightPrice}`);
-          this.logger.debug(`      Fraction: ${fraction.toFixed(4)}`);
-          this.logger.debug(`      Final weighted median: ${weightedPrice}`);
+        this.logger.debug(
+          `Selected median between:\n` +
+            `        ${prices[i].exchange}: ${prices[i].price}\n` +
+            `        ${prices[i + 1].exchange}: ${prices[i + 1].price}\n` +
+            `        Fraction: ${fraction.toFixed(4)}\n` +
+            `        Final weighted median: ${weightedPrice}`
+        );
 
-          // Update final result logging
-          this.logger.debug(
-            `    Selected median between:\n` +
-              `      ${prices[i].exchange}: ${prices[i].price}\n` +
-              `      ${prices[i + 1].exchange}: ${prices[i + 1].price}\n` +
-              `    Final weighted median: ${weightedPrice} (interpolation: ${fraction.toFixed(4)})`
-          );
-
-          return weightedPrice;
-        }
-
-        this.logger.debug(`Using exact price from ${prices[i].exchange}: ${prices[i].price}`);
-        return prices[i].price;
+        return weightedPrice;
       }
     }
 
-    // Fallback to middle price if something goes wrong
-    const fallbackPrice = prices[Math.floor(prices.length / 2)].price;
-    this.logger.debug(`Using fallback middle price: ${fallbackPrice}`);
-    return fallbackPrice;
+    // If we haven't found the median by now, use the last price
+    return prices[prices.length - 1].price;
   }
 
   private async getFeedPricePredictor(feedId: FeedId): Promise<number> {
