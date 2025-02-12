@@ -381,27 +381,29 @@ export class PredictorFeed implements BaseDataFeed {
         const prices = this.prices.get(source.symbol);
         if (!prices) {
           exchangeStatuses.noData++;
-          this.logger.debug(`${source.exchange}: No price data found`);
+          this.logger.debug(`${source.exchange}: No price data found for ${source.symbol}`);
           continue;
         }
 
         const info = prices.get(source.exchange);
         if (!info) {
           exchangeStatuses.noData++;
-          this.logger.debug(`${source.exchange}: No exchange data found`);
+          this.logger.debug(`${source.exchange}: No exchange data found for ${source.symbol}`);
           continue;
         }
 
         const staleness = info.source === "spot" ? 30 * 1000 : 5 * 60 * 1000;
         if (Date.now() - info.time > staleness) {
           exchangeStatuses.stale++;
-          this.logger.debug(`${source.exchange}: Stale data (${Math.round((Date.now() - info.time) / 1000)}s old)`);
+          this.logger.debug(
+            `${source.exchange}: Stale data for ${source.symbol} (${Math.round((Date.now() - info.time) / 1000)}s old)`
+          );
           continue;
         }
 
         if (!info.price || info.price <= 0) {
           exchangeStatuses.invalidPrice++;
-          this.logger.debug(`${source.exchange}: Invalid price (${info.price})`);
+          this.logger.debug(`${source.exchange}: Invalid price (${info.price}) for ${source.symbol}`);
           continue;
         }
 
