@@ -38,6 +38,12 @@
     "woo",
     "xt"
   ],
+  "exclusions": [
+    {
+      "exchange": "ascendex",
+      "pair": "USDX/USDT"
+    }
+  ],
   "baseTokens": [
     { "category": 1, "symbol": "AAVE" },
     { "category": 1, "symbol": "ADA" },

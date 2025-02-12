@@ -70,6 +70,7 @@ interface PredictionResponse {
 interface SimplifiedConfig {
   stablecoins: string[];
   exchanges: string[];
+  exclusions?: { exchange: string; pair: string }[];
   baseTokens: {
     category: number;
     symbol: string;
@@ -744,18 +745,28 @@ export class PredictorFeed implements BaseDataFeed {
 
       // For each exchange, check all possible quote pairs
       for (const exchange of config.exchanges) {
-        // Try USD pair first
-        sources.push({
-          exchange,
-          symbol: `${baseToken.symbol}/USD`,
-        });
+        // Check if any pairs should be excluded for this exchange
+        const isExcluded = (symbol: string) =>
+          config.exclusions?.some(ex => ex.exchange === exchange && ex.pair === symbol);
 
-        // Add stablecoin pairs
-        for (const stablecoin of config.stablecoins) {
+        // Try USD pair first if not excluded
+        const usdPair = `${baseToken.symbol}/USD`;
+        if (!isExcluded(usdPair)) {
           sources.push({
             exchange,
-            symbol: `${baseToken.symbol}/${stablecoin}`,
+            symbol: usdPair,
           });
+        }
+
+        // Add stablecoin pairs if not excluded
+        for (const stablecoin of config.stablecoins) {
+          const stablePair = `${baseToken.symbol}/${stablecoin}`;
+          if (!isExcluded(stablePair)) {
+            sources.push({
+              exchange,
+              symbol: stablePair,
+            });
+          }
         }
       }
 
@@ -768,15 +779,26 @@ export class PredictorFeed implements BaseDataFeed {
 
     // Add stablecoin feed configs
     for (const stablecoin of config.stablecoins) {
+      const sources = config.exchanges
+        .map(exchange => {
+          const pair = `${stablecoin}/USD`;
+          // Skip if excluded
+          if (config.exclusions?.some(ex => ex.exchange === exchange && ex.pair === pair)) {
+            return null;
+          }
+          return {
+            exchange,
+            symbol: pair,
+          };
+        })
+        .filter(Boolean); // Remove null entries
+
       feedConfigs.push({
         feed: {
           category: FeedCategory.Crypto,
           name: `${stablecoin}/USD`,
         },
-        sources: config.exchanges.map(exchange => ({
-          exchange,
-          symbol: `${stablecoin}/USD`,
-        })),
+        sources,
       });
     }
 
