@@ -563,34 +563,28 @@ export class PredictorFeed implements BaseDataFeed {
     const convertToUsd = process.env.PREDICTOR_CONVERT_TO_USD || true;
     const baseURL = `${url}${port ? `:${port}` : ""}/analyze`;
 
-    // Get all symbols at once instead of just baseSymbol
-    const allSymbols = this.config.map(config => config.feed.name.split("/")[0]).join(",");
+    this.logger.log(`PREDICTOR URL: ${baseURL}`);
 
     try {
       const request: AxiosResponse<PredictionResponse> = await axios.get(baseURL, {
         params: {
-          symbols: allSymbols, // Send all symbols in one request
+          symbols: baseSymbol,
           model: model,
           lookback: lookback,
           convert_to_usd: convertToUsd,
         },
         timeout: 15000,
       });
-
       if (request && request.data) {
-        // Get the prediction for our specific symbol from the response
         const prediction = request.data[baseSymbol];
-        if (!prediction) return null;
-
         const price = prediction.weighted_predicted_price;
-        if (price === 0 || price === null) return null;
+        if (price == 0 || price == null) return null;
 
         if (prediction.used_fallback) {
           this.logger.warn(`${baseSymbol} used fallback: ${prediction.fallback_reason}`);
         }
-
         this.logger.log(
-          `baseSymbol: ${baseSymbol}, prediction: ${price}, model: ${model}, lookback: ${lookback}, convertToUsd: ${convertToUsd}`
+          `baseSymbol: ${baseSymbol}, prediction: ${price}, model: ${model}, lookback: ${lookback}, convertToUsd: ${convertToUsd}, baseURL: ${baseURL}`
         );
         return price;
       }
@@ -602,7 +596,6 @@ export class PredictorFeed implements BaseDataFeed {
       }
       return null;
     }
-
     this.logger.debug(`Price from predictor was null`);
     return null;
   }
