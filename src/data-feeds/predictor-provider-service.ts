@@ -738,10 +738,43 @@ export class PredictorFeed implements BaseDataFeed {
     const feedConfigs: FeedConfig[] = [];
 
     for (const baseToken of config.baseTokens) {
-      // Generate USD feed config
+      const sources: { exchange: string; symbol: string }[] = [];
+
+      // For each exchange, check all possible quote pairs
+      for (const exchange of config.exchanges) {
+        // Try USD pair first
+        sources.push({
+          exchange,
+          symbol: `${baseToken.symbol}/USD`,
+        });
+
+        // Add stablecoin pairs
+        for (const stablecoin of config.stablecoins) {
+          sources.push({
+            exchange,
+            symbol: `${baseToken.symbol}/${stablecoin}`,
+          });
+        }
+      }
+
+      // Generate feed config with all possible sources
       feedConfigs.push({
         feed: { category: baseToken.category, name: `${baseToken.symbol}/USD` },
-        sources: [], // Will be populated with actual sources as they're discovered
+        sources: sources,
+      });
+    }
+
+    // Add stablecoin feed configs
+    for (const stablecoin of config.stablecoins) {
+      feedConfigs.push({
+        feed: {
+          category: FeedCategory.Crypto,
+          name: `${stablecoin}/USD`,
+        },
+        sources: config.exchanges.map(exchange => ({
+          exchange,
+          symbol: `${stablecoin}/USD`,
+        })),
       });
     }
 
