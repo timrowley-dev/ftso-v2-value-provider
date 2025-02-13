@@ -20,7 +20,7 @@ enum FeedCategory {
 
 const CONFIG_PREFIX = "src/config/";
 const RETRY_BACKOFF_MS = 10_000;
-const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average' or 'weighted-median'
+const PRICE_CALCULATION_METHOD = process.env.PRICE_CALCULATION_METHOD || "weighted-median"; // 'average', 'weighted-median', or 'weighted-mean'
 const lambda = process.env.MEDIAN_DECAY ? parseFloat(process.env.MEDIAN_DECAY) : 0.00005;
 const OUTLIER_MAD_THRESHOLD = process.env.OUTLIER_MAD_THRESHOLD ? parseFloat(process.env.OUTLIER_MAD_THRESHOLD) : 3.0;
 const OUTLIER_MIN_PERCENT_THRESHOLD = process.env.OUTLIER_MIN_PERCENT_THRESHOLD
@@ -466,7 +466,22 @@ export class PredictorFeed implements BaseDataFeed {
       // Calculate final price with both methods
       const weightedMedianPrice = this.weightedMedian(filteredPrices, symbol);
       const averagePrice = filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
-      const result = PRICE_CALCULATION_METHOD === "weighted-median" ? weightedMedianPrice : averagePrice;
+      const weightedMeanPrice = this.weightedMean(filteredPrices, symbol);
+
+      let result: number;
+      switch (PRICE_CALCULATION_METHOD) {
+        case "weighted-median":
+          result = weightedMedianPrice;
+          break;
+        case "weighted-mean":
+          result = weightedMeanPrice;
+          break;
+        case "average":
+          result = averagePrice;
+          break;
+        default:
+          result = weightedMedianPrice; // Default to weighted-median
+      }
 
       if (isStablecoin && !skipStablecoinConversion) {
         this.stablecoinRateCache.set(symbol, {
@@ -478,7 +493,7 @@ export class PredictorFeed implements BaseDataFeed {
       if (!isStablecoin && !skipLogging) {
         this.logger.log(
           `Final price for ${symbol}: ${result} ` +
-            `(weighted-median: ${weightedMedianPrice}, average: ${averagePrice})`
+            `(weighted-median: ${weightedMedianPrice}, weighted-mean: ${weightedMeanPrice}, average: ${averagePrice})`
         );
         this.logger.log(`${"=".repeat(50)}\n`);
       }
@@ -585,6 +600,56 @@ export class PredictorFeed implements BaseDataFeed {
 
     // If we haven't found the median by now, use the last price
     return prices[prices.length - 1].price;
+  }
+
+  private weightedMean(prices: PriceInfo[], symbol: string): number {
+    if (prices.length === 0) {
+      this.logger.warn(`No valid prices available for ${symbol}`);
+      return 0;
+    }
+
+    if (prices.length === 1) {
+      this.logger.debug(
+        `[${symbol || "UNKNOWN"}] Single price available, using: ${prices[0].price} from ${prices[0].exchange}`
+      );
+      return prices[0].price;
+    }
+
+    const now = Date.now();
+
+    this.logger.debug(
+      `[${symbol || "UNKNOWN"}] Processing ${prices.length} prices:\n` +
+        prices.map(p => `        ${p.exchange}: ${p.price} (${p.source}, vol: ${p.volume})`).join("\n")
+    );
+
+    // Calculate weights using the same approach as weightedMedian
+    const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
+    this.logger.debug(`Total volume: ${totalVolume}`);
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    prices.forEach(data => {
+      const timeDifference = now - data.time;
+      const timeWeight = Math.exp(-lambda * timeDifference);
+      const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
+      const combinedWeight = timeWeight * 0.99 + volumeWeight * 0.01;
+
+      this.logger.debug(
+        `${data.exchange.padEnd(10)}: ` +
+          `price=${data.price.toFixed(6)} ` +
+          `weight=${combinedWeight.toFixed(4)} ` +
+          `(time=${timeWeight.toFixed(4)}, vol=${volumeWeight.toFixed(4)})`
+      );
+
+      weightedSum += data.price * combinedWeight;
+      totalWeight += combinedWeight;
+    });
+
+    const weightedMeanPrice = weightedSum / totalWeight;
+    this.logger.debug(`Final weighted mean price: ${weightedMeanPrice}`);
+
+    return weightedMeanPrice;
   }
 
   private async getFeedPricePredictor(feedId: FeedId): Promise<number> {

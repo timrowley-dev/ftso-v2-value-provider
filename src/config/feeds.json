@@ -1,12 +1,11 @@
 {
   "stablecoins": ["USDT", "USDC"],
   "exchanges": [
-    "bigone",
     "ascendex",
+    "bigone",
     "binance",
     "binanceus",
     "bingx",
-    "fmfwio",
     "bitfinex",
     "bitfinex1",
     "bitget",
@@ -21,6 +20,7 @@
     "cryptocom",
     "digifinex",
     "exmo",
+    "fmfwio",
     "gateio",
     "gemini",
     "hitbtc",
