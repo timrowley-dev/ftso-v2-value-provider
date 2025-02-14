@@ -542,12 +542,11 @@ export class PredictorFeed implements BaseDataFeed {
     const totalVolume = prices.reduce((sum, data) => sum + data.volume, 0);
     this.logger.debug(`Total volume: ${totalVolume}`);
 
-    // Calculate and log weights in a single block
     const weights = prices.map(data => {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
-      const combinedWeight = timeWeight * 0.99 + volumeWeight * 0.01;
+      const combinedWeight = timeWeight * 0.999 + volumeWeight * 0.001;
 
       this.logger.debug(
         `${data.exchange.padEnd(10)}: ` +
@@ -575,26 +574,20 @@ export class PredictorFeed implements BaseDataFeed {
     let cumulativeWeight = 0;
     const midpoint = 0.5;
 
-    for (let i = 0; i < prices.length - 1; i++) {
+    for (let i = 0; i < prices.length; i++) {
       const prevWeight = cumulativeWeight;
       cumulativeWeight += normalizedWeights[i];
 
-      this.logger.debug(`Cumulative weight after ${prices[i].exchange}: ${cumulativeWeight.toFixed(4)}`);
-
-      if (cumulativeWeight >= midpoint) {
-        // If we've crossed the midpoint, interpolate between this price and the previous
-        const fraction = (midpoint - prevWeight) / normalizedWeights[i];
-        const weightedPrice = prices[i].price + (prices[i + 1].price - prices[i].price) * fraction;
-
-        this.logger.debug(
-          `Selected median between:\n` +
-            `        ${prices[i].exchange}: ${prices[i].price}\n` +
-            `        ${prices[i + 1].exchange}: ${prices[i + 1].price}\n` +
-            `        Fraction: ${fraction.toFixed(4)}\n` +
-            `        Final weighted median: ${weightedPrice}`
-        );
-
-        return weightedPrice;
+      if (prevWeight <= midpoint && cumulativeWeight >= midpoint) {
+        // If we're between two prices, interpolate
+        if (i < prices.length - 1) {
+          const leftPrice = prices[i].price;
+          const rightPrice = prices[i + 1].price;
+          const fraction = (midpoint - prevWeight) / normalizedWeights[i];
+          const weightedPrice = leftPrice + (rightPrice - leftPrice) * fraction;
+          return weightedPrice;
+        }
+        return prices[i].price;
       }
     }
 
@@ -633,7 +626,7 @@ export class PredictorFeed implements BaseDataFeed {
       const timeDifference = now - data.time;
       const timeWeight = Math.exp(-lambda * timeDifference);
       const volumeWeight = totalVolume > 0 ? data.volume / totalVolume : 1 / prices.length;
-      const combinedWeight = timeWeight * 0.99 + volumeWeight * 0.01;
+      const combinedWeight = timeWeight * 0.999 + volumeWeight * 0.001;
 
       this.logger.debug(
         `${data.exchange.padEnd(10)}: ` +
