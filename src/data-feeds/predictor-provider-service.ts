@@ -468,6 +468,7 @@ export class PredictorFeed implements BaseDataFeed {
       const averagePrice = filteredPrices.reduce((a, b) => a + b.price, 0) / filteredPrices.length;
       const weightedMeanPrice = this.weightedMean(filteredPrices, symbol);
 
+      // Calculate final price with all methods
       let result: number;
       switch (PRICE_CALCULATION_METHOD) {
         case "weighted-median":
@@ -478,6 +479,9 @@ export class PredictorFeed implements BaseDataFeed {
           break;
         case "average":
           result = averagePrice;
+          break;
+        case "default":
+          result = this.defaultWeightedMedian(allPrices);
           break;
         default:
           result = weightedMedianPrice; // Default to weighted-median
@@ -876,6 +880,51 @@ export class PredictorFeed implements BaseDataFeed {
     }
 
     return feedConfigs;
+  }
+
+  private defaultWeightedMedian(prices: PriceInfo[]): number {
+    if (prices.length === 0) {
+      throw new Error("Price list cannot be empty.");
+    }
+
+    prices.sort((a, b) => a.time - b.time);
+    const now = Date.now();
+
+    // Calculate exponential weights
+    const weights = prices.map(data => {
+      const timeDifference = now - data.time;
+      return Math.exp(-lambda * timeDifference); // Using same lambda constant
+    });
+
+    // Normalize weights to sum to 1
+    const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+    const normalizedWeights = weights.map(weight => weight / weightSum);
+
+    // Combine prices and weights and sort by price
+    const weightedPrices = prices.map((data, i) => ({
+      price: data.price,
+      weight: normalizedWeights[i],
+      exchange: data.exchange,
+      staleness: now - data.time,
+    })).sort((a, b) => a.price - b.price);
+
+    this.logger.debug("Default weighted prices:");
+    for (const { price, weight, exchange, staleness } of weightedPrices) {
+      this.logger.debug(`Price: ${price}, weight: ${weight}, staleness ms: ${staleness}, exchange: ${exchange}`);
+    }
+
+    // Find the weighted median
+    let cumulativeWeight = 0;
+    for (let i = 0; i < weightedPrices.length; i++) {
+      cumulativeWeight += weightedPrices[i].weight;
+      if (cumulativeWeight >= 0.5) {
+        this.logger.debug(`Default weighted median: ${weightedPrices[i].price}`);
+        return weightedPrices[i].price;
+      }
+    }
+
+    this.logger.warn("Unable to calculate default weighted median");
+    return 0;
   }
 }
 
