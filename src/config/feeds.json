@@ -99,6 +99,7 @@
     { "category": 1, "symbol": "TRX" },
     { "category": 1, "symbol": "UNI" },
     { "category": 1, "symbol": "USDC" },
+    { "category": 1, "symbol": "USDS" },
     { "category": 1, "symbol": "USDT" },
     { "category": 1, "symbol": "USDX" },
     { "category": 1, "symbol": "WIF" },
